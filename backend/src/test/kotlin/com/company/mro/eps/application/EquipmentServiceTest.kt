@@ -3,6 +3,7 @@ package com.company.mro.eps.application
 import com.company.mro.audit.application.AuditService
 import com.company.mro.eps.dto.CreateEquipmentRequest
 import com.company.mro.eps.dto.ChangeEquipmentStatusRequest
+import com.company.mro.eps.dto.DetectEquipmentDuplicateRequest
 import com.company.mro.eps.dto.UpdateEquipmentRequest
 import com.company.mro.eps.domain.EquipmentStatus
 import com.company.mro.eps.persistence.EquipmentEntity
@@ -206,6 +207,52 @@ class EquipmentServiceTest {
     fun `search rejects too short query`() {
         val ex = assertThrows(ResponseStatusException::class.java) {
             equipmentService.search("a", 10)
+        }
+        assertEquals(HttpStatus.BAD_REQUEST, ex.statusCode)
+    }
+
+    @Test
+    fun `duplicate detection returns exact asset tag candidate first`() {
+        val exact = EquipmentEntity(
+            id = UUID.randomUUID(),
+            assetTag = "EQ-100",
+            name = "Main Pump",
+            category = "PUMP",
+            status = EquipmentStatus.ACTIVE,
+            serialNumber = "SN-100",
+            updatedAt = Instant.now()
+        )
+        val partial = EquipmentEntity(
+            id = UUID.randomUUID(),
+            assetTag = "EQ-100-AUX",
+            name = "Aux Pump",
+            category = "PUMP",
+            status = EquipmentStatus.ACTIVE,
+            serialNumber = "SN-101",
+            updatedAt = Instant.now()
+        )
+        whenever(equipmentRepository.findAll()).thenReturn(listOf(partial, exact))
+
+        val response = equipmentService.detectDuplicates(
+            DetectEquipmentDuplicateRequest(
+                assetTag = "EQ-100",
+                name = "Main Pump",
+                serialNumber = "SN-100"
+            ),
+            10
+        )
+
+        assertEquals(exact.id, response.first().id)
+        assertTrue(response.first().duplicateScore >= response.last().duplicateScore)
+    }
+
+    @Test
+    fun `duplicate detection rejects non positive limit`() {
+        val ex = assertThrows(ResponseStatusException::class.java) {
+            equipmentService.detectDuplicates(
+                DetectEquipmentDuplicateRequest(assetTag = "EQ-1", name = "Pump"),
+                0
+            )
         }
         assertEquals(HttpStatus.BAD_REQUEST, ex.statusCode)
     }

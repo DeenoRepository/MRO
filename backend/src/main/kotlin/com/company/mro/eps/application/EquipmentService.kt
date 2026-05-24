@@ -4,6 +4,8 @@ import com.company.mro.audit.application.AuditService
 import com.company.mro.eps.domain.EquipmentStatus
 import com.company.mro.eps.dto.CreateEquipmentRequest
 import com.company.mro.eps.dto.ChangeEquipmentStatusRequest
+import com.company.mro.eps.dto.DetectEquipmentDuplicateRequest
+import com.company.mro.eps.dto.EquipmentDuplicateCandidateResponse
 import com.company.mro.eps.dto.EquipmentMobileItemResponse
 import com.company.mro.eps.dto.EquipmentMobileListResponse
 import com.company.mro.eps.dto.EquipmentQrPayloadResponse
@@ -52,6 +54,35 @@ class EquipmentService(
             .sortedWith(compareByDescending<Pair<EquipmentEntity, Int>> { it.second }.thenBy { it.first.name })
             .take(resolvedLimit)
             .map { (entity, score) -> entity.toSearchItemResponse(score) }
+    }
+
+    @Transactional(readOnly = true)
+    fun detectDuplicates(request: DetectEquipmentDuplicateRequest, limit: Int?): List<EquipmentDuplicateCandidateResponse> {
+        val resolvedLimit = min(limit ?: 10, MAX_MOBILE_LIMIT)
+        if (resolvedLimit <= 0) {
+            throw ResponseStatusException(HttpStatus.BAD_REQUEST, "limit must be greater than 0")
+        }
+        val normalizedAssetTag = request.assetTag.trim().lowercase()
+        val normalizedName = request.name.trim().lowercase()
+        val normalizedSerial = request.serialNumber?.trim()?.lowercase()
+        val normalizedManufacturer = request.manufacturer?.trim()?.lowercase()
+        val normalizedModel = request.model?.trim()?.lowercase()
+
+        return equipmentRepository.findAll()
+            .mapNotNull { entity ->
+                val score = calculateDuplicateScore(
+                    entity = entity,
+                    assetTag = normalizedAssetTag,
+                    name = normalizedName,
+                    serialNumber = normalizedSerial,
+                    manufacturer = normalizedManufacturer,
+                    model = normalizedModel
+                )
+                if (score >= 40) entity to score else null
+            }
+            .sortedWith(compareByDescending<Pair<EquipmentEntity, Int>> { it.second }.thenBy { it.first.name })
+            .take(resolvedLimit)
+            .map { (entity, score) -> entity.toDuplicateCandidateResponse(score) }
     }
 
     @Transactional(readOnly = true)
@@ -212,6 +243,44 @@ class EquipmentService(
         return score
     }
 
+    private fun calculateDuplicateScore(
+        entity: EquipmentEntity,
+        assetTag: String,
+        name: String,
+        serialNumber: String?,
+        manufacturer: String?,
+        model: String?
+    ): Int {
+        var score = 0
+        val entityAssetTag = entity.assetTag.lowercase()
+        val entityName = entity.name.lowercase()
+        val entitySerial = entity.serialNumber?.lowercase()
+        val entityManufacturer = entity.manufacturer?.lowercase()
+        val entityModel = entity.model?.lowercase()
+
+        if (entityAssetTag == assetTag) score += 100
+        else if (entityAssetTag.contains(assetTag) || assetTag.contains(entityAssetTag)) score += 40
+
+        if (entityName == name) score += 70
+        else if (entityName.contains(name) || name.contains(entityName)) score += 30
+
+        if (!serialNumber.isNullOrBlank() && !entitySerial.isNullOrBlank()) {
+            if (entitySerial == serialNumber) score += 90
+            else if (entitySerial.contains(serialNumber) || serialNumber.contains(entitySerial)) score += 35
+        }
+
+        if (!manufacturer.isNullOrBlank() && !entityManufacturer.isNullOrBlank()) {
+            if (entityManufacturer == manufacturer) score += 25
+            else if (entityManufacturer.contains(manufacturer) || manufacturer.contains(entityManufacturer)) score += 10
+        }
+
+        if (!model.isNullOrBlank() && !entityModel.isNullOrBlank()) {
+            if (entityModel == model) score += 30
+            else if (entityModel.contains(model) || model.contains(entityModel)) score += 12
+        }
+        return score
+    }
+
     private fun EquipmentEntity.toResponse(): EquipmentResponse = EquipmentResponse(
         id = id,
         assetTag = assetTag,
@@ -245,4 +314,15 @@ class EquipmentService(
         location = location,
         relevanceScore = score
     )
+
+    private fun EquipmentEntity.toDuplicateCandidateResponse(score: Int): EquipmentDuplicateCandidateResponse =
+        EquipmentDuplicateCandidateResponse(
+            id = id,
+            assetTag = assetTag,
+            name = name,
+            serialNumber = serialNumber,
+            manufacturer = manufacturer,
+            model = model,
+            duplicateScore = score
+        )
 }

@@ -5,6 +5,8 @@ import com.company.mro.eps.application.EquipmentService
 import com.company.mro.core.api.successResponse
 import com.company.mro.eps.dto.CreateEquipmentRequest
 import com.company.mro.eps.dto.ChangeEquipmentStatusRequest
+import com.company.mro.eps.dto.DetectEquipmentDuplicateRequest
+import com.company.mro.eps.dto.EquipmentDuplicateCandidateResponse
 import com.company.mro.eps.dto.EquipmentMobileListResponse
 import com.company.mro.eps.dto.EquipmentQrPayloadResponse
 import com.company.mro.eps.dto.EquipmentResponse
@@ -54,6 +56,15 @@ class EquipmentController(
         @RequestParam("query") query: String,
         @RequestParam("limit", required = false) limit: Int?
     ): ApiSuccessResponse<List<EquipmentSearchItemResponse>> = successResponse(equipmentService.search(query, limit))
+
+    @PostMapping("/detect-duplicates")
+    @Operation(summary = "Detect potential duplicate equipment records")
+    @PreAuthorize("hasAuthority('EPS_READ')")
+    fun detectDuplicates(
+        @Valid @RequestBody request: DetectEquipmentDuplicateRequest,
+        @RequestParam("limit", required = false) limit: Int?
+    ): ApiSuccessResponse<List<EquipmentDuplicateCandidateResponse>> =
+        successResponse(equipmentService.detectDuplicates(request, limit))
 
     @GetMapping("/{id}")
     @Operation(summary = "Get equipment by id")

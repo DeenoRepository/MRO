@@ -99,3 +99,28 @@ data class EquipmentSearchItemResponse(
     val location: String?,
     val relevanceScore: Int
 )
+
+data class DetectEquipmentDuplicateRequest(
+    @field:NotBlank
+    @field:Size(max = 64)
+    val assetTag: String,
+    @field:NotBlank
+    @field:Size(max = 255)
+    val name: String,
+    @field:Size(max = 255)
+    val manufacturer: String? = null,
+    @field:Size(max = 255)
+    val model: String? = null,
+    @field:Size(max = 128)
+    val serialNumber: String? = null
+)
+
+data class EquipmentDuplicateCandidateResponse(
+    val id: UUID,
+    val assetTag: String,
+    val name: String,
+    val serialNumber: String?,
+    val manufacturer: String?,
+    val model: String?,
+    val duplicateScore: Int
+)
