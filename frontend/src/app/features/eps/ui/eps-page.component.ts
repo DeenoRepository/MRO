@@ -2,7 +2,7 @@ import { CommonModule } from '@angular/common';
 import { Component, OnInit } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { EpsService } from '../data/eps.service';
-import { CreateEquipmentRequest, Equipment, EquipmentDocument } from '../data/eps.models';
+import { CreateEquipmentRequest, Equipment, EquipmentDocument, TelemetryMetricType, TelemetryPoint } from '../data/eps.models';
 import { EpsDocumentsComponent } from './eps-documents.component';
 import { EpsChangeRequestsComponent } from './eps-change-requests.component';
 
@@ -175,6 +175,41 @@ interface TimelineEvent {
           <!-- DOCUMENT SIDE PANEL -->
           <div class="registry-detail-section" *ngIf="selectedEquipment">
             <mro-eps-documents [equipment]="selectedEquipment"></mro-eps-documents>
+            <section class="telemetry-card">
+              <header class="telemetry-header">
+                <h3>Live Telemetry</h3>
+                <div class="telemetry-actions">
+                  <select [value]="telemetryMetricFilter" (change)="setTelemetryMetricFilter($any($event.target).value)">
+                    <option value="ALL">All metrics</option>
+                    <option value="TEMPERATURE">Temperature</option>
+                    <option value="VIBRATION">Vibration</option>
+                    <option value="PRESSURE">Pressure</option>
+                    <option value="RUNTIME_HOURS">Runtime Hours</option>
+                  </select>
+                  <button class="btn btn-secondary btn-sm" (click)="refreshTelemetry()">Refresh</button>
+                </div>
+              </header>
+              <div class="telemetry-empty" *ngIf="telemetryLoading">Loading telemetry...</div>
+              <div class="telemetry-empty" *ngIf="!telemetryLoading && telemetryPoints.length === 0">No telemetry points.</div>
+              <table class="table telemetry-table" *ngIf="!telemetryLoading && telemetryPoints.length > 0">
+                <thead>
+                  <tr>
+                    <th>Metric</th>
+                    <th>Value</th>
+                    <th>Recorded</th>
+                    <th>Source</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr *ngFor="let point of telemetryPoints">
+                    <td>{{ formatMetric(point.metricType) }}</td>
+                    <td>{{ point.metricValue }} {{ point.unit || '' }}</td>
+                    <td>{{ point.recordedAt | date: 'short' }}</td>
+                    <td>{{ point.source || '-' }}</td>
+                  </tr>
+                </tbody>
+              </table>
+            </section>
           </div>
           <div class="registry-detail-placeholder" *ngIf="!selectedEquipment">
             <p>Select an asset from the list to manage its documents & passports.</p>
@@ -398,6 +433,48 @@ interface TimelineEvent {
       text-align: center;
       color: #64748b;
     }
+    .registry-detail-section {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+    .telemetry-card {
+      background: #ffffff;
+      border-radius: 12px;
+      border: 1px solid #e2e8f0;
+      padding: 16px;
+      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.02);
+    }
+    .telemetry-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 12px;
+    }
+    .telemetry-header h3 {
+      margin: 0;
+      font-size: 1rem;
+      color: #0f172a;
+    }
+    .telemetry-actions {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+    .telemetry-actions select {
+      min-width: 140px;
+      padding: 6px 8px;
+      border-radius: 6px;
+      border: 1px solid #cbd5e1;
+    }
+    .telemetry-table {
+      font-size: 0.82rem;
+    }
+    .telemetry-empty {
+      color: #64748b;
+      font-style: italic;
+    }
     .timeline-card {
       background: #ffffff;
       border-radius: 12px;
@@ -493,6 +570,9 @@ export class EpsPageComponent implements OnInit {
   activeTab: 'registry' | 'requests' = 'registry';
   equipment: Equipment[] = [];
   selectedEquipment?: Equipment;
+  telemetryPoints: TelemetryPoint[] = [];
+  telemetryMetricFilter: 'ALL' | TelemetryMetricType = 'ALL';
+  telemetryLoading = false;
   timelineEvents: TimelineEvent[] = [];
   filteredTimelineEvents: TimelineEvent[] = [];
   timelineTypeFilter: 'ALL' | TimelineEventType = 'ALL';
@@ -533,6 +613,7 @@ export class EpsPageComponent implements OnInit {
           this.selectedEquipment = updated;
           if (updated) {
             this.loadSelectedEquipmentDocuments(updated.id);
+            this.loadTelemetry(updated.id);
           }
         }
       },
@@ -546,6 +627,7 @@ export class EpsPageComponent implements OnInit {
   selectEquipment(item: Equipment): void {
     this.selectedEquipment = item;
     this.loadSelectedEquipmentDocuments(item.id);
+    this.loadTelemetry(item.id);
   }
 
   get visibleColumnCount(): number {
@@ -631,6 +713,23 @@ export class EpsPageComponent implements OnInit {
     this.applyTimelineFilter();
   }
 
+  setTelemetryMetricFilter(value: string): void {
+    if (value === 'TEMPERATURE' || value === 'VIBRATION' || value === 'PRESSURE' || value === 'RUNTIME_HOURS') {
+      this.telemetryMetricFilter = value;
+    } else {
+      this.telemetryMetricFilter = 'ALL';
+    }
+    this.refreshTelemetry();
+  }
+
+  refreshTelemetry(): void {
+    if (!this.selectedEquipment) {
+      this.telemetryPoints = [];
+      return;
+    }
+    this.loadTelemetry(this.selectedEquipment.id);
+  }
+
   private loadSavedFilters(): void {
     const raw = localStorage.getItem(this.filtersStorageKey);
     if (!raw) return;
@@ -692,6 +791,36 @@ export class EpsPageComponent implements OnInit {
       next: (res) => this.rebuildTimeline(res.data),
       error: () => this.rebuildTimeline()
     });
+  }
+
+  private loadTelemetry(equipmentId: string): void {
+    this.telemetryLoading = true;
+    const metricType = this.telemetryMetricFilter === 'ALL' ? undefined : this.telemetryMetricFilter;
+    this.epsService.getEquipmentTelemetry(equipmentId, metricType).subscribe({
+      next: (res) => {
+        this.telemetryPoints = res.data;
+        this.telemetryLoading = false;
+      },
+      error: () => {
+        this.telemetryPoints = [];
+        this.telemetryLoading = false;
+      }
+    });
+  }
+
+  formatMetric(metricType: TelemetryMetricType): string {
+    switch (metricType) {
+      case 'RUNTIME_HOURS':
+        return 'Runtime Hours';
+      case 'TEMPERATURE':
+        return 'Temperature';
+      case 'VIBRATION':
+        return 'Vibration';
+      case 'PRESSURE':
+        return 'Pressure';
+      default:
+        return metricType;
+    }
   }
 
   private rebuildTimeline(documents: EquipmentDocument[] = []): void {

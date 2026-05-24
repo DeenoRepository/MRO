@@ -46,6 +46,19 @@ export interface EquipmentDocument {
   uploadedBy?: string | null;
 }
 
+export type TelemetryMetricType = 'TEMPERATURE' | 'VIBRATION' | 'PRESSURE' | 'RUNTIME_HOURS';
+
+export interface TelemetryPoint {
+  id: string;
+  equipmentId: string;
+  metricType: TelemetryMetricType;
+  metricValue: number;
+  unit?: string | null;
+  recordedAt: string;
+  source?: string | null;
+  createdAt: string;
+}
+
 export interface ChangeRequest {
   id: string;
   entityType: string;

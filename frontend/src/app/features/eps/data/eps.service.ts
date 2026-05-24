@@ -2,7 +2,7 @@ import { Injectable } from '@angular/core';
 import { Observable } from 'rxjs';
 import { ApiSuccessResponse } from '../../../core/api/api.models';
 import { ApiClientService } from '../../../core/api/api-client.service';
-import { CreateEquipmentRequest, Equipment, UpdateEquipmentRequest, EquipmentDocument, ChangeRequest, CreateChangeRequest, DecideChangeRequest } from './eps.models';
+import { CreateEquipmentRequest, Equipment, UpdateEquipmentRequest, EquipmentDocument, ChangeRequest, CreateChangeRequest, DecideChangeRequest, TelemetryPoint, TelemetryMetricType } from './eps.models';
 
 @Injectable({ providedIn: 'root' })
 export class EpsService {
@@ -30,6 +30,14 @@ export class EpsService {
 
   getEquipmentDocuments(equipmentId: string): Observable<ApiSuccessResponse<EquipmentDocument[]>> {
     return this.api.get<EquipmentDocument[]>(`/eps/equipment/${equipmentId}/documents`);
+  }
+
+  getEquipmentTelemetry(
+    equipmentId: string,
+    metricType?: TelemetryMetricType
+  ): Observable<ApiSuccessResponse<TelemetryPoint[]>> {
+    const query = metricType ? `?metricType=${metricType}` : '';
+    return this.api.get<TelemetryPoint[]>(`/eps/equipment/${equipmentId}/telemetry${query}`);
   }
 
   uploadEquipmentDocument(
