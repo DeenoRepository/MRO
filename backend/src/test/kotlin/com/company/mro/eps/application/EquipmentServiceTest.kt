@@ -7,6 +7,7 @@ import com.company.mro.eps.dto.DetectEquipmentDuplicateRequest
 import com.company.mro.eps.dto.UpdateEquipmentRequest
 import com.company.mro.eps.domain.EquipmentStatus
 import com.company.mro.eps.persistence.EquipmentEntity
+import com.company.mro.eps.persistence.EquipmentOverviewProjection
 import com.company.mro.eps.persistence.EquipmentRepository
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertThrows
@@ -253,6 +254,33 @@ class EquipmentServiceTest {
                 DetectEquipmentDuplicateRequest(assetTag = "EQ-1", name = "Pump"),
                 0
             )
+        }
+        assertEquals(HttpStatus.BAD_REQUEST, ex.statusCode)
+    }
+
+    @Test
+    fun `overview returns projection items with filters`() {
+        val projection = object : EquipmentOverviewProjection {
+            override fun getId(): UUID = UUID.randomUUID()
+            override fun getAssetTag(): String = "EQ-OV-1"
+            override fun getName(): String = "Overview Pump"
+            override fun getCategory(): String = "PUMP"
+            override fun getStatus(): EquipmentStatus = EquipmentStatus.ACTIVE
+            override fun getLocation(): String = "A1"
+            override fun getUpdatedAt(): Instant = Instant.parse("2026-01-01T00:00:00Z")
+        }
+        whenever(equipmentRepository.findOverview(EquipmentStatus.ACTIVE, "PUMP")).thenReturn(listOf(projection))
+
+        val response = equipmentService.getOverview(EquipmentStatus.ACTIVE, "PUMP", 10)
+
+        assertEquals(1, response.size)
+        assertEquals("EQ-OV-1", response.first().assetTag)
+    }
+
+    @Test
+    fun `overview rejects non positive limit`() {
+        val ex = assertThrows(ResponseStatusException::class.java) {
+            equipmentService.getOverview(null, null, 0)
         }
         assertEquals(HttpStatus.BAD_REQUEST, ex.statusCode)
     }

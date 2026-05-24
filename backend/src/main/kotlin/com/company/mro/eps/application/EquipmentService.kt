@@ -8,11 +8,13 @@ import com.company.mro.eps.dto.DetectEquipmentDuplicateRequest
 import com.company.mro.eps.dto.EquipmentDuplicateCandidateResponse
 import com.company.mro.eps.dto.EquipmentMobileItemResponse
 import com.company.mro.eps.dto.EquipmentMobileListResponse
+import com.company.mro.eps.dto.EquipmentOverviewItemResponse
 import com.company.mro.eps.dto.EquipmentQrPayloadResponse
 import com.company.mro.eps.dto.EquipmentResponse
 import com.company.mro.eps.dto.EquipmentSearchItemResponse
 import com.company.mro.eps.dto.UpdateEquipmentRequest
 import com.company.mro.eps.persistence.EquipmentEntity
+import com.company.mro.eps.persistence.EquipmentOverviewProjection
 import com.company.mro.eps.persistence.EquipmentRepository
 import org.springframework.http.HttpStatus
 import org.springframework.stereotype.Service
@@ -35,6 +37,18 @@ class EquipmentService(
 
     @Transactional(readOnly = true)
     fun getAll(): List<EquipmentResponse> = equipmentRepository.findAll().map { it.toResponse() }
+
+    @Transactional(readOnly = true)
+    fun getOverview(status: EquipmentStatus?, category: String?, limit: Int?): List<EquipmentOverviewItemResponse> {
+        val resolvedLimit = min(limit ?: DEFAULT_MOBILE_LIMIT, MAX_MOBILE_LIMIT)
+        if (resolvedLimit <= 0) {
+            throw ResponseStatusException(HttpStatus.BAD_REQUEST, "limit must be greater than 0")
+        }
+        val normalizedCategory = category?.trim()?.takeIf { it.isNotEmpty() }
+        return equipmentRepository.findOverview(status, normalizedCategory)
+            .take(resolvedLimit)
+            .map { it.toOverviewItemResponse() }
+    }
 
     @Transactional(readOnly = true)
     fun search(query: String, limit: Int?): List<EquipmentSearchItemResponse> {
@@ -324,5 +338,16 @@ class EquipmentService(
             manufacturer = manufacturer,
             model = model,
             duplicateScore = score
+        )
+
+    private fun EquipmentOverviewProjection.toOverviewItemResponse(): EquipmentOverviewItemResponse =
+        EquipmentOverviewItemResponse(
+            id = getId(),
+            assetTag = getAssetTag(),
+            name = getName(),
+            category = getCategory(),
+            status = getStatus(),
+            location = getLocation(),
+            updatedAt = getUpdatedAt()
         )
 }

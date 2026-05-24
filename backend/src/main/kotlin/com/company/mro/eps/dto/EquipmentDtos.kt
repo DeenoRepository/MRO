@@ -124,3 +124,13 @@ data class EquipmentDuplicateCandidateResponse(
     val model: String?,
     val duplicateScore: Int
 )
+
+data class EquipmentOverviewItemResponse(
+    val id: UUID,
+    val assetTag: String,
+    val name: String,
+    val category: String,
+    val status: EquipmentStatus,
+    val location: String?,
+    val updatedAt: Instant
+)

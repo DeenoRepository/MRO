@@ -8,10 +8,12 @@ import com.company.mro.eps.dto.ChangeEquipmentStatusRequest
 import com.company.mro.eps.dto.DetectEquipmentDuplicateRequest
 import com.company.mro.eps.dto.EquipmentDuplicateCandidateResponse
 import com.company.mro.eps.dto.EquipmentMobileListResponse
+import com.company.mro.eps.dto.EquipmentOverviewItemResponse
 import com.company.mro.eps.dto.EquipmentQrPayloadResponse
 import com.company.mro.eps.dto.EquipmentResponse
 import com.company.mro.eps.dto.EquipmentSearchItemResponse
 import com.company.mro.eps.dto.UpdateEquipmentRequest
+import com.company.mro.eps.domain.EquipmentStatus
 import io.swagger.v3.oas.annotations.Operation
 import io.swagger.v3.oas.annotations.tags.Tag
 import jakarta.validation.Valid
@@ -48,6 +50,16 @@ class EquipmentController(
         @RequestParam("limit", required = false) limit: Int?,
         @RequestParam("offset", required = false) offset: Int?
     ): ApiSuccessResponse<EquipmentMobileListResponse> = successResponse(equipmentService.getMobileList(limit, offset))
+
+    @GetMapping("/overview")
+    @Operation(summary = "Read-optimized equipment overview")
+    @PreAuthorize("hasAuthority('EPS_READ')")
+    fun getOverview(
+        @RequestParam("status", required = false) status: EquipmentStatus?,
+        @RequestParam("category", required = false) category: String?,
+        @RequestParam("limit", required = false) limit: Int?
+    ): ApiSuccessResponse<List<EquipmentOverviewItemResponse>> =
+        successResponse(equipmentService.getOverview(status, category, limit))
 
     @GetMapping("/search")
     @Operation(summary = "Smart equipment search")
