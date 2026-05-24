@@ -45,6 +45,8 @@ class SecurityConfig {
                 "EPS_COMPLIANCE_MANAGE",
                 "EPS_TELEMETRY_WRITE",
                 "EPS_MEDIA_UPLOAD",
+                "EPS_INTEGRATION_LOG_WRITE",
+                "EPS_INTEGRATION_LOG_READ",
                 "MMS_READ",
                 "MMS_WRITE",
                 "MMS_ASSIGN",
