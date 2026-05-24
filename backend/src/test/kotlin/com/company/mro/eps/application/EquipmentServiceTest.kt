@@ -2,6 +2,7 @@ package com.company.mro.eps.application
 
 import com.company.mro.audit.application.AuditService
 import com.company.mro.eps.dto.CreateEquipmentRequest
+import com.company.mro.eps.dto.ChangeEquipmentStatusRequest
 import com.company.mro.eps.dto.UpdateEquipmentRequest
 import com.company.mro.eps.domain.EquipmentStatus
 import com.company.mro.eps.persistence.EquipmentEntity
@@ -103,5 +104,46 @@ class EquipmentServiceTest {
 
         assertEquals(id, response.equipmentId)
         assertEquals("/eps/equipment/$id", response.equipmentUrl)
+    }
+
+    @Test
+    fun `status transition active to maintenance is allowed`() {
+        val id = UUID.randomUUID()
+        val entity = EquipmentEntity(
+            id = id,
+            assetTag = "AST-2",
+            name = "Compressor",
+            category = "COMPRESSOR",
+            status = EquipmentStatus.ACTIVE,
+            createdAt = Instant.now(),
+            updatedAt = Instant.now()
+        )
+        whenever(equipmentRepository.findById(id)).thenReturn(Optional.of(entity))
+        whenever(equipmentRepository.save(entity)).thenReturn(entity)
+
+        val response = equipmentService.transitionStatus(id, ChangeEquipmentStatusRequest(EquipmentStatus.MAINTENANCE))
+
+        assertEquals(EquipmentStatus.MAINTENANCE, response.status)
+    }
+
+    @Test
+    fun `status transition planned to active is rejected`() {
+        val id = UUID.randomUUID()
+        val entity = EquipmentEntity(
+            id = id,
+            assetTag = "AST-3",
+            name = "Boiler",
+            category = "BOILER",
+            status = EquipmentStatus.PLANNED,
+            createdAt = Instant.now(),
+            updatedAt = Instant.now()
+        )
+        whenever(equipmentRepository.findById(id)).thenReturn(Optional.of(entity))
+
+        val ex = assertThrows(ResponseStatusException::class.java) {
+            equipmentService.transitionStatus(id, ChangeEquipmentStatusRequest(EquipmentStatus.ACTIVE))
+        }
+
+        assertEquals(HttpStatus.BAD_REQUEST, ex.statusCode)
     }
 }

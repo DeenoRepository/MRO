@@ -4,6 +4,7 @@ import com.company.mro.core.api.ApiSuccessResponse
 import com.company.mro.eps.application.EquipmentService
 import com.company.mro.core.api.successResponse
 import com.company.mro.eps.dto.CreateEquipmentRequest
+import com.company.mro.eps.dto.ChangeEquipmentStatusRequest
 import com.company.mro.eps.dto.EquipmentQrPayloadResponse
 import com.company.mro.eps.dto.EquipmentResponse
 import com.company.mro.eps.dto.UpdateEquipmentRequest
@@ -17,6 +18,7 @@ import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.PathVariable
 import org.springframework.web.bind.annotation.PostMapping
 import org.springframework.web.bind.annotation.PutMapping
+import org.springframework.web.bind.annotation.PatchMapping
 import org.springframework.web.bind.annotation.RequestBody
 import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.ResponseStatus
@@ -60,6 +62,14 @@ class EquipmentController(
         @PathVariable id: UUID,
         @Valid @RequestBody request: UpdateEquipmentRequest
     ): ApiSuccessResponse<EquipmentResponse> = successResponse(equipmentService.update(id, request))
+
+    @PatchMapping("/{id}/status")
+    @Operation(summary = "Change equipment lifecycle status")
+    @PreAuthorize("hasAuthority('EPS_WRITE')")
+    fun changeStatus(
+        @PathVariable id: UUID,
+        @RequestBody request: ChangeEquipmentStatusRequest
+    ): ApiSuccessResponse<EquipmentResponse> = successResponse(equipmentService.transitionStatus(id, request))
 
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)

@@ -70,3 +70,7 @@ data class EquipmentQrPayloadResponse(
     val createTicketUrl: String,
     val openWorkOrdersUrl: String
 )
+
+data class ChangeEquipmentStatusRequest(
+    val status: EquipmentStatus
+)

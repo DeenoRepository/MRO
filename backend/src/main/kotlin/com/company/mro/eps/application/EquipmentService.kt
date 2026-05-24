@@ -3,6 +3,7 @@ package com.company.mro.eps.application
 import com.company.mro.audit.application.AuditService
 import com.company.mro.eps.domain.EquipmentStatus
 import com.company.mro.eps.dto.CreateEquipmentRequest
+import com.company.mro.eps.dto.ChangeEquipmentStatusRequest
 import com.company.mro.eps.dto.EquipmentQrPayloadResponse
 import com.company.mro.eps.dto.EquipmentResponse
 import com.company.mro.eps.dto.UpdateEquipmentRequest
@@ -93,11 +94,18 @@ class EquipmentService(
 
     @Transactional
     fun deactivate(id: UUID) {
+        transitionStatus(id, ChangeEquipmentStatusRequest(EquipmentStatus.DECOMMISSIONED))
+    }
+
+    @Transactional
+    fun transitionStatus(id: UUID, request: ChangeEquipmentStatusRequest): EquipmentResponse {
         val entity = findEntity(id)
-        entity.status = EquipmentStatus.INACTIVE
+        validateStatusTransition(entity.status, request.status)
+        entity.status = request.status
         entity.updatedAt = Instant.now()
-        equipmentRepository.save(entity)
-        auditService.log("EQUIPMENT_DEACTIVATED", "EPS", "equipment", entity.id.toString())
+        val saved = equipmentRepository.save(entity)
+        auditService.log("EQUIPMENT_STATUS_CHANGED", "EPS", "equipment", saved.id.toString())
+        return saved.toResponse()
     }
 
     private fun findEntity(id: UUID): EquipmentEntity =
@@ -109,6 +117,24 @@ class EquipmentService(
     private fun ensureParentExists(id: UUID) {
         if (!equipmentRepository.existsById(id)) {
             throw ResponseStatusException(HttpStatus.BAD_REQUEST, "Parent equipment not found")
+        }
+    }
+
+    private fun validateStatusTransition(from: EquipmentStatus, to: EquipmentStatus) {
+        if (from == to) return
+        val allowed = when (from) {
+            EquipmentStatus.PLANNED -> to == EquipmentStatus.ORDERED || to == EquipmentStatus.SCRAPPED
+            EquipmentStatus.ORDERED -> to == EquipmentStatus.IN_TRANSIT || to == EquipmentStatus.SCRAPPED
+            EquipmentStatus.IN_TRANSIT -> to == EquipmentStatus.INSTALLED || to == EquipmentStatus.SCRAPPED
+            EquipmentStatus.INSTALLED -> to == EquipmentStatus.ACTIVE || to == EquipmentStatus.MAINTENANCE || to == EquipmentStatus.SCRAPPED
+            EquipmentStatus.ACTIVE -> to == EquipmentStatus.MAINTENANCE || to == EquipmentStatus.DECOMMISSIONED
+            EquipmentStatus.MAINTENANCE -> to == EquipmentStatus.ACTIVE || to == EquipmentStatus.DECOMMISSIONED
+            EquipmentStatus.DECOMMISSIONED -> to == EquipmentStatus.SCRAPPED
+            EquipmentStatus.SCRAPPED -> false
+            EquipmentStatus.INACTIVE -> to == EquipmentStatus.DECOMMISSIONED || to == EquipmentStatus.ACTIVE
+        }
+        if (!allowed) {
+            throw ResponseStatusException(HttpStatus.BAD_REQUEST, "Transition from $from to $to is not allowed")
         }
     }
 
