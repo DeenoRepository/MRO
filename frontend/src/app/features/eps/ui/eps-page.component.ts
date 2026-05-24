@@ -256,6 +256,24 @@ interface TimelineEvent {
                 </li>
               </ul>
             </section>
+
+            <section class="graph-card">
+              <header class="graph-header">
+                <h3>Asset Relationship Snapshot</h3>
+              </header>
+              <div class="graph-center-node" *ngIf="selectedEquipment">
+                {{ selectedEquipment.assetTag }} | {{ selectedEquipment.name }}
+              </div>
+              <div class="graph-empty" *ngIf="relatedEquipment.length === 0">
+                No related assets by category or location.
+              </div>
+              <ul class="graph-list" *ngIf="relatedEquipment.length > 0">
+                <li *ngFor="let rel of relatedEquipment">
+                  <strong>{{ rel.assetTag }}</strong> - {{ rel.name }}
+                  <span class="graph-reason">{{ buildRelationReason(rel) }}</span>
+                </li>
+              </ul>
+            </section>
           </div>
           <div class="registry-detail-placeholder" *ngIf="!selectedEquipment">
             <p>Select an asset from the list to manage its documents & passports.</p>
@@ -602,6 +620,52 @@ interface TimelineEvent {
     .media-download:hover {
       text-decoration: underline;
     }
+    .graph-card {
+      background: #ffffff;
+      border-radius: 12px;
+      border: 1px solid #e2e8f0;
+      padding: 16px;
+      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.02);
+    }
+    .graph-header h3 {
+      margin: 0 0 10px 0;
+      font-size: 1rem;
+      color: #0f172a;
+    }
+    .graph-center-node {
+      border: 1px solid #0ea5e9;
+      background: #f0f9ff;
+      color: #0c4a6e;
+      border-radius: 8px;
+      padding: 10px;
+      font-weight: 600;
+      margin-bottom: 10px;
+    }
+    .graph-empty {
+      color: #64748b;
+      font-style: italic;
+    }
+    .graph-list {
+      list-style: none;
+      margin: 0;
+      padding: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .graph-list li {
+      padding: 8px 10px;
+      border-radius: 8px;
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      font-size: 0.84rem;
+      color: #334155;
+    }
+    .graph-reason {
+      color: #64748b;
+      margin-left: 6px;
+      font-size: 0.78rem;
+    }
     .timeline-card {
       background: #ffffff;
       border-radius: 12px;
@@ -709,6 +773,7 @@ export class EpsPageComponent implements OnInit {
   uploadMediaType: EquipmentMediaType = 'PHOTO';
   uploadMediaAnnotation = '';
   uploadMediaFile?: File;
+  relatedEquipment: Equipment[] = [];
   timelineEvents: TimelineEvent[] = [];
   filteredTimelineEvents: TimelineEvent[] = [];
   timelineTypeFilter: 'ALL' | TimelineEventType = 'ALL';
@@ -751,6 +816,7 @@ export class EpsPageComponent implements OnInit {
             this.loadSelectedEquipmentDocuments(updated.id);
             this.loadTelemetry(updated.id);
             this.loadMedia(updated.id);
+            this.computeRelatedEquipment(updated);
           }
         }
       },
@@ -766,6 +832,7 @@ export class EpsPageComponent implements OnInit {
     this.loadSelectedEquipmentDocuments(item.id);
     this.loadTelemetry(item.id);
     this.loadMedia(item.id);
+    this.computeRelatedEquipment(item);
   }
 
   get visibleColumnCount(): number {
@@ -1019,6 +1086,23 @@ export class EpsPageComponent implements OnInit {
 
   buildMediaDownloadUrl(mediaId: string): string {
     return `/api/v1/eps/equipment/media/${mediaId}/download`;
+  }
+
+  buildRelationReason(item: Equipment): string {
+    if (!this.selectedEquipment) return '';
+    const sameCategory = item.category === this.selectedEquipment.category;
+    const sameLocation = !!item.location && item.location === this.selectedEquipment.location;
+    if (sameCategory && sameLocation) return '(same category and location)';
+    if (sameCategory) return '(same category)';
+    if (sameLocation) return '(same location)';
+    return '';
+  }
+
+  private computeRelatedEquipment(source: Equipment): void {
+    this.relatedEquipment = this.equipment
+      .filter((item) => item.id !== source.id)
+      .filter((item) => item.category === source.category || (!!item.location && item.location === source.location))
+      .slice(0, 8);
   }
 
   formatMetric(metricType: TelemetryMetricType): string {
