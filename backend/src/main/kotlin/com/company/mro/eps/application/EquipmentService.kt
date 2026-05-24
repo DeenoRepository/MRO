@@ -17,6 +17,7 @@ import java.util.UUID
 @Service
 class EquipmentService(
     private val equipmentRepository: EquipmentRepository,
+    private val equipmentCategoryService: EquipmentCategoryService,
     private val auditService: AuditService
 ) : EquipmentLookupService {
     @Transactional(readOnly = true)
@@ -30,6 +31,7 @@ class EquipmentService(
         if (equipmentRepository.existsByAssetTag(request.assetTag.trim())) {
             throw ResponseStatusException(HttpStatus.CONFLICT, "Equipment assetTag already exists")
         }
+        equipmentCategoryService.ensureActiveCategoryExists(request.category)
 
         val now = Instant.now()
         val entity = EquipmentEntity(
@@ -54,6 +56,7 @@ class EquipmentService(
     @Transactional
     fun update(id: UUID, request: UpdateEquipmentRequest): EquipmentResponse {
         val entity = findEntity(id)
+        equipmentCategoryService.ensureActiveCategoryExists(request.category)
         entity.name = request.name.trim()
         entity.category = request.category.trim()
         entity.location = request.location?.trim()

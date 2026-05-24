@@ -41,6 +41,7 @@ class SecurityConfig {
                 "EPS_READ",
                 "EPS_WRITE",
                 "EPS_APPROVE",
+                "EPS_CATEGORY_MANAGE",
                 "MMS_READ",
                 "MMS_WRITE",
                 "MMS_ASSIGN",
