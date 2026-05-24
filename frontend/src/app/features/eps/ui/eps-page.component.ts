@@ -2,11 +2,22 @@ import { CommonModule } from '@angular/common';
 import { Component, OnInit } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { EpsService } from '../data/eps.service';
-import { CreateEquipmentRequest, Equipment } from '../data/eps.models';
+import { CreateEquipmentRequest, Equipment, EquipmentDocument } from '../data/eps.models';
 import { EpsDocumentsComponent } from './eps-documents.component';
 import { EpsChangeRequestsComponent } from './eps-change-requests.component';
 
 type RegistryColumnKey = 'assetTag' | 'name' | 'category' | 'status' | 'location';
+type TimelineEventType = 'CREATED' | 'UPDATED' | 'DOCUMENT';
+
+interface TimelineEvent {
+  id: string;
+  equipmentId: string;
+  equipmentLabel: string;
+  title: string;
+  type: TimelineEventType;
+  at: string;
+  meta?: string;
+}
 
 @Component({
   selector: 'mro-eps-page',
@@ -130,6 +141,35 @@ type RegistryColumnKey = 'assetTag' | 'name' | 'category' | 'status' | 'location
                 </tbody>
               </table>
             </div>
+
+            <section class="timeline-card">
+              <header class="timeline-header">
+                <h3>Activity Timeline</h3>
+                <select [value]="timelineTypeFilter" (change)="setTimelineTypeFilter($any($event.target).value)">
+                  <option value="ALL">All events</option>
+                  <option value="CREATED">Created</option>
+                  <option value="UPDATED">Updated</option>
+                  <option value="DOCUMENT">Documents</option>
+                </select>
+              </header>
+
+              <div class="timeline-empty" *ngIf="filteredTimelineEvents.length === 0">
+                No events yet.
+              </div>
+
+              <ul class="timeline-list" *ngIf="filteredTimelineEvents.length > 0">
+                <li *ngFor="let event of filteredTimelineEvents">
+                  <div class="timeline-dot" [attr.data-type]="event.type"></div>
+                  <div class="timeline-body">
+                    <div class="timeline-title">{{ event.title }}</div>
+                    <div class="timeline-meta">
+                      {{ event.equipmentLabel }} | {{ event.at | date: 'medium' }}
+                      <span *ngIf="event.meta"> | {{ event.meta }}</span>
+                    </div>
+                  </div>
+                </li>
+              </ul>
+            </section>
           </div>
 
           <!-- DOCUMENT SIDE PANEL -->
@@ -358,6 +398,69 @@ type RegistryColumnKey = 'assetTag' | 'name' | 'category' | 'status' | 'location
       text-align: center;
       color: #64748b;
     }
+    .timeline-card {
+      background: #ffffff;
+      border-radius: 12px;
+      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.02);
+      border: 1px solid #e2e8f0;
+      padding: 16px;
+    }
+    .timeline-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 12px;
+    }
+    .timeline-header h3 {
+      margin: 0;
+      font-size: 1rem;
+      color: #0f172a;
+    }
+    .timeline-header select {
+      min-width: 140px;
+      padding: 6px 8px;
+      border-radius: 6px;
+      border: 1px solid #cbd5e1;
+    }
+    .timeline-list {
+      margin: 0;
+      padding: 0;
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    .timeline-list li {
+      display: flex;
+      gap: 10px;
+      align-items: flex-start;
+    }
+    .timeline-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      margin-top: 6px;
+      background: #64748b;
+      flex-shrink: 0;
+    }
+    .timeline-dot[data-type='CREATED'] { background: #059669; }
+    .timeline-dot[data-type='UPDATED'] { background: #0ea5e9; }
+    .timeline-dot[data-type='DOCUMENT'] { background: #7c3aed; }
+    .timeline-title {
+      font-size: 0.9rem;
+      color: #0f172a;
+      font-weight: 600;
+    }
+    .timeline-meta {
+      font-size: 0.8rem;
+      color: #64748b;
+      margin-top: 2px;
+    }
+    .timeline-empty {
+      color: #64748b;
+      font-style: italic;
+    }
   `]
 })
 export class EpsPageComponent implements OnInit {
@@ -390,6 +493,9 @@ export class EpsPageComponent implements OnInit {
   activeTab: 'registry' | 'requests' = 'registry';
   equipment: Equipment[] = [];
   selectedEquipment?: Equipment;
+  timelineEvents: TimelineEvent[] = [];
+  filteredTimelineEvents: TimelineEvent[] = [];
+  timelineTypeFilter: 'ALL' | TimelineEventType = 'ALL';
   loading = false;
   submitting = false;
   error = '';
@@ -419,11 +525,15 @@ export class EpsPageComponent implements OnInit {
         this.availableStatuses = Array.from(new Set(this.equipment.map(e => e.status))).sort();
         this.availableCategories = Array.from(new Set(this.equipment.map(e => e.category))).sort();
         this.applyFiltersAndSort();
+        this.rebuildTimeline();
         this.loading = false;
         // Keep selection active if it still exists
         if (this.selectedEquipment) {
           const updated = this.equipment.find(e => e.id === this.selectedEquipment?.id);
           this.selectedEquipment = updated;
+          if (updated) {
+            this.loadSelectedEquipmentDocuments(updated.id);
+          }
         }
       },
       error: (err) => {
@@ -435,6 +545,7 @@ export class EpsPageComponent implements OnInit {
 
   selectEquipment(item: Equipment): void {
     this.selectedEquipment = item;
+    this.loadSelectedEquipmentDocuments(item.id);
   }
 
   get visibleColumnCount(): number {
@@ -470,7 +581,7 @@ export class EpsPageComponent implements OnInit {
 
   sortIndicator(field: RegistryColumnKey): string {
     if (this.sortField !== field) return '';
-    return this.sortDirection === 'asc' ? '↑' : '↓';
+    return this.sortDirection === 'asc' ? '^' : 'v';
   }
 
   onSearchInput(value: string): void {
@@ -509,6 +620,15 @@ export class EpsPageComponent implements OnInit {
   removeSavedFilter(index: number): void {
     this.savedFilters.splice(index, 1);
     localStorage.setItem(this.filtersStorageKey, JSON.stringify(this.savedFilters));
+  }
+
+  setTimelineTypeFilter(value: string): void {
+    if (value === 'CREATED' || value === 'UPDATED' || value === 'DOCUMENT') {
+      this.timelineTypeFilter = value;
+    } else {
+      this.timelineTypeFilter = 'ALL';
+    }
+    this.applyTimelineFilter();
   }
 
   private loadSavedFilters(): void {
@@ -565,6 +685,62 @@ export class EpsPageComponent implements OnInit {
       default:
         return '';
     }
+  }
+
+  private loadSelectedEquipmentDocuments(equipmentId: string): void {
+    this.epsService.getEquipmentDocuments(equipmentId).subscribe({
+      next: (res) => this.rebuildTimeline(res.data),
+      error: () => this.rebuildTimeline()
+    });
+  }
+
+  private rebuildTimeline(documents: EquipmentDocument[] = []): void {
+    const equipmentEvents: TimelineEvent[] = this.equipment.flatMap((item) => {
+      const created: TimelineEvent = {
+        id: `created-${item.id}`,
+        equipmentId: item.id,
+        equipmentLabel: `${item.assetTag} ${item.name}`,
+        title: 'Equipment registered',
+        type: 'CREATED',
+        at: item.createdAt
+      };
+      const updates: TimelineEvent[] = item.updatedAt !== item.createdAt
+        ? [{
+            id: `updated-${item.id}`,
+            equipmentId: item.id,
+            equipmentLabel: `${item.assetTag} ${item.name}`,
+            title: 'Equipment profile updated',
+            type: 'UPDATED',
+            at: item.updatedAt
+          }]
+        : [];
+      return [created, ...updates];
+    });
+
+    const documentEvents: TimelineEvent[] = documents.map((doc) => ({
+      id: `document-${doc.id}`,
+      equipmentId: doc.equipmentId,
+      equipmentLabel: this.selectedEquipment
+        ? `${this.selectedEquipment.assetTag} ${this.selectedEquipment.name}`
+        : doc.equipmentId,
+      title: 'Document uploaded',
+      type: 'DOCUMENT',
+      at: doc.uploadedAt,
+      meta: `${doc.documentType}: ${doc.fileName}`
+    }));
+
+    this.timelineEvents = [...documentEvents, ...equipmentEvents]
+      .sort((a, b) => new Date(b.at).getTime() - new Date(a.at).getTime())
+      .slice(0, 40);
+    this.applyTimelineFilter();
+  }
+
+  private applyTimelineFilter(): void {
+    if (this.timelineTypeFilter === 'ALL') {
+      this.filteredTimelineEvents = [...this.timelineEvents];
+      return;
+    }
+    this.filteredTimelineEvents = this.timelineEvents.filter((event) => event.type === this.timelineTypeFilter);
   }
 
   create(): void {
