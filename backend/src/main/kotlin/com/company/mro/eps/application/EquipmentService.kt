@@ -16,24 +16,33 @@ import com.company.mro.eps.dto.UpdateEquipmentRequest
 import com.company.mro.eps.persistence.EquipmentEntity
 import com.company.mro.eps.persistence.EquipmentOverviewProjection
 import com.company.mro.eps.persistence.EquipmentRepository
+import org.springframework.beans.factory.annotation.Value
 import org.springframework.http.HttpStatus
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import org.springframework.web.server.ResponseStatusException
 import java.time.Instant
 import java.util.UUID
+import java.util.concurrent.ConcurrentHashMap
 import kotlin.math.min
 
 @Service
 class EquipmentService(
     private val equipmentRepository: EquipmentRepository,
     private val equipmentCategoryService: EquipmentCategoryService,
-    private val auditService: AuditService
+    private val auditService: AuditService,
+    @Value("\${mro.cache.equipment-read-ttl-seconds:30}")
+    private val readCacheTtlSeconds: Long = 30
 ) : EquipmentLookupService {
     companion object {
         private const val DEFAULT_MOBILE_LIMIT = 20
         private const val MAX_MOBILE_LIMIT = 100
+        private const val OVERVIEW_CACHE_PREFIX = "equipment_overview"
+        private const val SEARCH_CACHE_PREFIX = "equipment_search"
     }
+
+    private data class CacheEntry(val expiresAt: Instant, val value: Any)
+    private val readCache = ConcurrentHashMap<String, CacheEntry>()
 
     @Transactional(readOnly = true)
     fun getAll(): List<EquipmentResponse> = equipmentRepository.findAll().map { it.toResponse() }
@@ -45,9 +54,12 @@ class EquipmentService(
             throw ResponseStatusException(HttpStatus.BAD_REQUEST, "limit must be greater than 0")
         }
         val normalizedCategory = category?.trim()?.takeIf { it.isNotEmpty() }
-        return equipmentRepository.findOverview(status, normalizedCategory)
-            .take(resolvedLimit)
-            .map { it.toOverviewItemResponse() }
+        val cacheKey = "$OVERVIEW_CACHE_PREFIX|status=${status?.name ?: "ANY"}|category=${normalizedCategory?.lowercase() ?: "ANY"}|limit=$resolvedLimit"
+        return getCached(cacheKey) {
+            equipmentRepository.findOverview(status, normalizedCategory)
+                .take(resolvedLimit)
+                .map { it.toOverviewItemResponse() }
+        }
     }
 
     @Transactional(readOnly = true)
@@ -60,14 +72,18 @@ class EquipmentService(
         if (resolvedLimit <= 0) {
             throw ResponseStatusException(HttpStatus.BAD_REQUEST, "limit must be greater than 0")
         }
-        return equipmentRepository.findAll()
-            .mapNotNull { entity ->
-                val score = calculateSearchScore(entity, normalized)
-                if (score == 0) null else entity to score
+        val cacheKey = "$SEARCH_CACHE_PREFIX|query=$normalized|limit=$resolvedLimit"
+        return getCached(cacheKey) {
+            equipmentRepository.findAll()
+                .mapNotNull { entity ->
+                    val score = calculateSearchScore(entity, normalized)
+                    if (score == 0) null else entity to score
+                }
+                .sortedWith(compareByDescending<Pair<EquipmentEntity, Int>> { it.second }.thenBy { it.first.name })
+                .take(resolvedLimit)
+                .map { (entity, score) -> entity.toSearchItemResponse(score) }
             }
-            .sortedWith(compareByDescending<Pair<EquipmentEntity, Int>> { it.second }.thenBy { it.first.name })
-            .take(resolvedLimit)
-            .map { (entity, score) -> entity.toSearchItemResponse(score) }
+        }
     }
 
     @Transactional(readOnly = true)
@@ -164,6 +180,7 @@ class EquipmentService(
         )
         val saved = equipmentRepository.save(entity)
         auditService.log("EQUIPMENT_CREATED", "EPS", "equipment", saved.id.toString())
+        invalidateReadCaches()
         return saved.toResponse()
     }
 
@@ -188,6 +205,7 @@ class EquipmentService(
         entity.updatedAt = Instant.now()
         val saved = equipmentRepository.save(entity)
         auditService.log("EQUIPMENT_UPDATED", "EPS", "equipment", saved.id.toString())
+        invalidateReadCaches()
         return saved.toResponse()
     }
 
@@ -204,7 +222,25 @@ class EquipmentService(
         entity.updatedAt = Instant.now()
         val saved = equipmentRepository.save(entity)
         auditService.log("EQUIPMENT_STATUS_CHANGED", "EPS", "equipment", saved.id.toString())
+        invalidateReadCaches()
         return saved.toResponse()
+    }
+
+    @Suppress("UNCHECKED_CAST")
+    private fun <T : Any> getCached(key: String, loader: () -> T): T {
+        val now = Instant.now()
+        val cached = readCache[key]
+        if (cached != null && cached.expiresAt.isAfter(now)) {
+            return cached.value as T
+        }
+        val loaded = loader()
+        val ttl = readCacheTtlSeconds.coerceAtLeast(1)
+        readCache[key] = CacheEntry(now.plusSeconds(ttl), loaded as Any)
+        return loaded
+    }
+
+    private fun invalidateReadCaches() {
+        readCache.keys.removeIf { it.startsWith(OVERVIEW_CACHE_PREFIX) || it.startsWith(SEARCH_CACHE_PREFIX) }
     }
 
     private fun findEntity(id: UUID): EquipmentEntity =
