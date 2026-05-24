@@ -47,6 +47,19 @@ class GlobalExceptionHandler {
         )
     }
 
+    @ExceptionHandler(org.springframework.security.access.AccessDeniedException::class, org.springframework.security.authorization.AuthorizationDeniedException::class)
+    fun handleAccessDenied(
+        request: HttpServletRequest
+    ): ResponseEntity<ApiErrorResponse> {
+        return ResponseEntity.status(HttpStatus.FORBIDDEN).body(
+            errorResponse(
+                status = HttpStatus.FORBIDDEN,
+                message = "Access denied",
+                request = request
+            )
+        )
+    }
+
     @ExceptionHandler(Exception::class)
     fun handleGenericError(
         request: HttpServletRequest

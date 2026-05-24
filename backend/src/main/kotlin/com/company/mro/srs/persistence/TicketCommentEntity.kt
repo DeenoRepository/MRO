@@ -12,13 +12,19 @@ import java.util.UUID
 class TicketCommentEntity(
     @Id
     var id: UUID,
+
     @Column(name = "ticket_id", nullable = false)
     var ticketId: UUID,
-    @Column(name = "author_id")
-    var authorId: UUID? = null,
-    @Column(nullable = false, columnDefinition = "text")
-    var body: String,
+
+    @Column(name = "comment_text", nullable = false, columnDefinition = "text")
+    var commentText: String,
+
+    @Column(name = "is_internal", nullable = false)
+    var isInternal: Boolean = false,
+
+    @Column(name = "created_by")
+    var createdBy: UUID? = null,
+
     @Column(name = "created_at", nullable = false)
     var createdAt: Instant = Instant.now()
 )
-

@@ -4,6 +4,6 @@ import org.springframework.data.jpa.repository.JpaRepository
 import java.util.UUID
 
 interface TicketCommentRepository : JpaRepository<TicketCommentEntity, UUID> {
-    fun findAllByTicketId(ticketId: UUID): List<TicketCommentEntity>
+    fun findAllByTicketIdOrderByCreatedAtAsc(ticketId: UUID): List<TicketCommentEntity>
+    fun findAllByTicketIdAndIsInternalFalseOrderByCreatedAtAsc(ticketId: UUID): List<TicketCommentEntity>
 }
-
