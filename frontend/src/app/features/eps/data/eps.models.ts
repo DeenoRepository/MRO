@@ -41,6 +41,7 @@ export interface EquipmentDocument {
   filePath: string;
   version: number;
   checksumSha256: string;
+  extractedTextSnippet?: string | null;
   uploadedAt: string;
   uploadedBy?: string | null;
 }

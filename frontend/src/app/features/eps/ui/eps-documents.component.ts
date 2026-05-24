@@ -27,8 +27,23 @@ import { Equipment, EquipmentDocument } from '../data/eps.models';
               <option value="OTHER">Other Documentation</option>
             </select>
           </div>
-          <div class="form-group file-input-group">
+          <div
+            class="form-group dropzone"
+            [class.drag-active]="dragActive"
+            (dragover)="onDragOver($event)"
+            (dragleave)="onDragLeave($event)"
+            (drop)="onDrop($event)"
+          >
             <input type="file" (change)="onFileSelected($event)" #fileInput />
+            <p *ngIf="!selectedFile">Drag file here or click input</p>
+            <p *ngIf="selectedFile">Selected: {{ selectedFile.name }}</p>
+          </div>
+          <div class="form-group extracted-text-group">
+            <textarea
+              rows="3"
+              formControlName="extractedText"
+              placeholder="Optional extracted OCR text for in-document search"
+            ></textarea>
           </div>
           <button type="submit" [disabled]="uploadForm.invalid || !selectedFile || uploading" class="btn btn-primary">
             {{ uploading ? 'Uploading...' : 'Upload' }}
@@ -62,13 +77,38 @@ import { Equipment, EquipmentDocument } from '../data/eps.models';
               <td class="hash" [title]="doc.checksumSha256">{{ doc.checksumSha256.substring(0, 8) }}...</td>
               <td>{{ doc.uploadedAt | date:'yyyy-MM-dd HH:mm' }}</td>
               <td>
-                <a [href]="'/api/v1/eps/equipment/documents/' + doc.id + '/download'" class="download-link" target="_blank">
-                  Download
-                </a>
+                <button class="btn btn-secondary btn-sm" (click)="previewDocument(doc)">Preview</button>
+                <a [href]="downloadUrl(doc)" class="download-link" target="_blank">Download</a>
               </td>
             </tr>
           </tbody>
         </table>
+      </div>
+
+      <div class="preview-section" *ngIf="previewDoc">
+        <div class="preview-header">
+          <h4>Preview: {{ previewDoc.fileName }}</h4>
+          <button class="btn btn-secondary btn-sm" (click)="closePreview()">Close</button>
+        </div>
+        <img
+          *ngIf="isImage(previewDoc.fileName)"
+          [src]="downloadUrl(previewDoc)"
+          alt="Document preview"
+          class="preview-image"
+        />
+        <iframe
+          *ngIf="isPdf(previewDoc.fileName)"
+          [src]="downloadUrl(previewDoc)"
+          class="preview-frame"
+          title="PDF preview"
+        ></iframe>
+        <div *ngIf="!isImage(previewDoc.fileName) && !isPdf(previewDoc.fileName)" class="preview-fallback">
+          Preview is not available for this file type. Use Download.
+        </div>
+        <div class="ocr-snippet" *ngIf="previewDoc.extractedTextSnippet">
+          <h5>Extracted Text Snippet</h5>
+          <p>{{ previewDoc.extractedTextSnippet }}</p>
+        </div>
       </div>
     </div>
   `,
@@ -135,6 +175,38 @@ import { Equipment, EquipmentDocument } from '../data/eps.models';
     .file-input-group input {
       font-family: inherit;
     }
+    .dropzone {
+      min-width: 240px;
+      border: 1px dashed #94a3b8;
+      background: #ffffff;
+      border-radius: 8px;
+      padding: 10px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .dropzone.drag-active {
+      border-color: #0284c7;
+      background: #f0f9ff;
+    }
+    .dropzone p {
+      margin: 0;
+      color: #64748b;
+      font-size: 0.8rem;
+    }
+    .extracted-text-group {
+      width: 100%;
+    }
+    .extracted-text-group textarea {
+      width: 100%;
+      resize: vertical;
+      min-height: 64px;
+      border-radius: 6px;
+      border: 1px solid #cbd5e1;
+      padding: 8px 10px;
+      font-family: inherit;
+      font-size: 0.85rem;
+    }
     .btn {
       padding: 8px 16px;
       border-radius: 6px;
@@ -192,6 +264,7 @@ import { Equipment, EquipmentDocument } from '../data/eps.models';
       color: #0284c7;
       text-decoration: none;
       font-weight: 600;
+      margin-left: 8px;
     }
     .download-link:hover {
       text-decoration: underline;
@@ -201,6 +274,59 @@ import { Equipment, EquipmentDocument } from '../data/eps.models';
       text-align: center;
       color: #64748b;
       font-style: italic;
+    }
+    .preview-section {
+      border-top: 1px solid #e2e8f0;
+      padding-top: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .preview-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .preview-image {
+      width: 100%;
+      max-height: 340px;
+      object-fit: contain;
+      border: 1px solid #e2e8f0;
+      border-radius: 8px;
+      background: #f8fafc;
+    }
+    .preview-frame {
+      width: 100%;
+      min-height: 360px;
+      border: 1px solid #e2e8f0;
+      border-radius: 8px;
+      background: #ffffff;
+    }
+    .preview-fallback {
+      border: 1px dashed #cbd5e1;
+      border-radius: 8px;
+      padding: 16px;
+      color: #64748b;
+      font-size: 0.9rem;
+      background: #f8fafc;
+    }
+    .ocr-snippet {
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 8px;
+      padding: 12px;
+    }
+    .ocr-snippet h5 {
+      margin: 0 0 8px 0;
+      color: #334155;
+      font-size: 0.85rem;
+    }
+    .ocr-snippet p {
+      margin: 0;
+      color: #475569;
+      font-size: 0.85rem;
+      line-height: 1.4;
+      white-space: pre-wrap;
     }
   `]
 })
@@ -213,9 +339,12 @@ export class EpsDocumentsComponent implements OnChanges {
   uploadError = '';
   uploadSuccess = false;
   selectedFile: File | null = null;
+  dragActive = false;
+  previewDoc?: EquipmentDocument;
 
   readonly uploadForm = this.fb.group({
-    documentType: ['', Validators.required]
+    documentType: ['', Validators.required],
+    extractedText: ['']
   });
 
   constructor(
@@ -229,7 +358,8 @@ export class EpsDocumentsComponent implements OnChanges {
       this.uploadSuccess = false;
       this.uploadError = '';
       this.selectedFile = null;
-      this.uploadForm.reset({ documentType: '' });
+      this.previewDoc = undefined;
+      this.uploadForm.reset({ documentType: '', extractedText: '' });
     }
   }
 
@@ -254,6 +384,45 @@ export class EpsDocumentsComponent implements OnChanges {
     }
   }
 
+  onDragOver(event: DragEvent): void {
+    event.preventDefault();
+    this.dragActive = true;
+  }
+
+  onDragLeave(event: DragEvent): void {
+    event.preventDefault();
+    this.dragActive = false;
+  }
+
+  onDrop(event: DragEvent): void {
+    event.preventDefault();
+    this.dragActive = false;
+    const file = event.dataTransfer?.files?.[0];
+    if (file) {
+      this.selectedFile = file;
+    }
+  }
+
+  previewDocument(doc: EquipmentDocument): void {
+    this.previewDoc = doc;
+  }
+
+  closePreview(): void {
+    this.previewDoc = undefined;
+  }
+
+  downloadUrl(doc: EquipmentDocument): string {
+    return `/api/v1/eps/equipment/documents/${doc.id}/download`;
+  }
+
+  isImage(fileName: string): boolean {
+    return /\.(png|jpg|jpeg|gif|webp|bmp)$/i.test(fileName);
+  }
+
+  isPdf(fileName: string): boolean {
+    return /\.pdf$/i.test(fileName);
+  }
+
   upload(): void {
     if (this.uploadForm.invalid || !this.selectedFile || !this.equipment) return;
     this.uploading = true;
@@ -261,13 +430,14 @@ export class EpsDocumentsComponent implements OnChanges {
     this.uploadSuccess = false;
 
     const docType = this.uploadForm.controls.documentType.value ?? '';
+    const extractedText = this.uploadForm.controls.extractedText.value ?? '';
 
-    this.epsService.uploadEquipmentDocument(this.equipment.id, docType, this.selectedFile).subscribe({
+    this.epsService.uploadEquipmentDocument(this.equipment.id, docType, this.selectedFile, extractedText).subscribe({
       next: () => {
         this.uploading = false;
         this.uploadSuccess = true;
         this.selectedFile = null;
-        this.uploadForm.reset({ documentType: '' });
+        this.uploadForm.reset({ documentType: '', extractedText: '' });
         this.loadDocuments();
       },
       error: (err) => {

@@ -32,10 +32,18 @@ export class EpsService {
     return this.api.get<EquipmentDocument[]>(`/eps/equipment/${equipmentId}/documents`);
   }
 
-  uploadEquipmentDocument(equipmentId: string, documentType: string, file: File): Observable<ApiSuccessResponse<EquipmentDocument>> {
+  uploadEquipmentDocument(
+    equipmentId: string,
+    documentType: string,
+    file: File,
+    extractedText?: string
+  ): Observable<ApiSuccessResponse<EquipmentDocument>> {
     const formData = new FormData();
     formData.append('documentType', documentType);
     formData.append('file', file);
+    if (extractedText && extractedText.trim().length > 0) {
+      formData.append('extractedText', extractedText.trim());
+    }
     return this.api.post<FormData, EquipmentDocument>(`/eps/equipment/${equipmentId}/documents`, formData);
   }
 
@@ -55,4 +63,3 @@ export class EpsService {
     return this.api.post<DecideChangeRequest, ChangeRequest>(`/eps/change-requests/${id}/reject`, payload);
   }
 }
-
