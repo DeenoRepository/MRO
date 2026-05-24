@@ -2,12 +2,13 @@ import { CommonModule } from '@angular/common';
 import { Component, OnInit } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { EpsService } from '../data/eps.service';
-import { CreateEquipmentRequest, Equipment, EquipmentDocument, TelemetryMetricType, TelemetryPoint } from '../data/eps.models';
+import { CreateEquipmentRequest, Equipment, EquipmentDocument, TelemetryMetricType, TelemetryPoint, EquipmentMediaItem, EquipmentMediaType } from '../data/eps.models';
 import { EpsDocumentsComponent } from './eps-documents.component';
 import { EpsChangeRequestsComponent } from './eps-change-requests.component';
 
 type RegistryColumnKey = 'assetTag' | 'name' | 'category' | 'status' | 'location';
 type TimelineEventType = 'CREATED' | 'UPDATED' | 'DOCUMENT';
+type MediaFilterType = 'ALL' | EquipmentMediaType;
 
 interface TimelineEvent {
   id: string;
@@ -209,6 +210,51 @@ interface TimelineEvent {
                   </tr>
                 </tbody>
               </table>
+            </section>
+
+            <section class="media-card">
+              <header class="media-header">
+                <h3>Inspection Media</h3>
+                <div class="media-actions">
+                  <select [value]="mediaFilterType" (change)="setMediaFilter($any($event.target).value)">
+                    <option value="ALL">All media</option>
+                    <option value="PHOTO">Photos</option>
+                    <option value="VIDEO">Videos</option>
+                  </select>
+                  <button class="btn btn-secondary btn-sm" (click)="refreshMedia()">Refresh</button>
+                </div>
+              </header>
+
+              <div class="media-upload-row">
+                <select [value]="uploadMediaType" (change)="uploadMediaType = $any($event.target).value">
+                  <option value="PHOTO">Photo</option>
+                  <option value="VIDEO">Video</option>
+                </select>
+                <input type="text" [value]="uploadMediaAnnotation" (input)="uploadMediaAnnotation = $any($event.target).value" placeholder="Inspection note / annotation" />
+                <input type="file" (change)="onMediaFileSelected($event)" />
+                <button class="btn btn-primary btn-sm" (click)="uploadMedia()" [disabled]="mediaUploading || !uploadMediaFile">
+                  {{ mediaUploading ? 'Uploading...' : 'Upload' }}
+                </button>
+              </div>
+
+              <p class="error" *ngIf="mediaError">{{ mediaError }}</p>
+              <div class="telemetry-empty" *ngIf="mediaLoading">Loading media...</div>
+              <div class="telemetry-empty" *ngIf="!mediaLoading && filteredMediaItems.length === 0">No media records.</div>
+
+              <ul class="media-list" *ngIf="!mediaLoading && filteredMediaItems.length > 0">
+                <li *ngFor="let item of filteredMediaItems">
+                  <div class="media-row-head">
+                    <strong>{{ item.fileName }}</strong>
+                    <span class="media-type">{{ item.mediaType }}</span>
+                  </div>
+                  <div class="media-row-meta">
+                    {{ item.uploadedAt | date: 'medium' }}
+                    <span *ngIf="item.annotation"> | {{ item.annotation }}</span>
+                    <span *ngIf="item.fileSize"> | {{ item.fileSize | number }} bytes</span>
+                  </div>
+                  <a class="media-download" [href]="buildMediaDownloadUrl(item.id)" target="_blank" rel="noopener noreferrer">Download</a>
+                </li>
+              </ul>
             </section>
           </div>
           <div class="registry-detail-placeholder" *ngIf="!selectedEquipment">
@@ -475,6 +521,87 @@ interface TimelineEvent {
       color: #64748b;
       font-style: italic;
     }
+    .media-card {
+      background: #ffffff;
+      border-radius: 12px;
+      border: 1px solid #e2e8f0;
+      padding: 16px;
+      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.02);
+    }
+    .media-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 12px;
+    }
+    .media-header h3 {
+      margin: 0;
+      font-size: 1rem;
+      color: #0f172a;
+    }
+    .media-actions {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+    .media-actions select,
+    .media-upload-row select,
+    .media-upload-row input[type='text'],
+    .media-upload-row input[type='file'] {
+      border: 1px solid #cbd5e1;
+      border-radius: 6px;
+      padding: 6px 8px;
+      font-size: 0.82rem;
+    }
+    .media-upload-row {
+      display: grid;
+      grid-template-columns: 120px 1fr 1fr auto;
+      gap: 8px;
+      align-items: center;
+      margin-bottom: 12px;
+    }
+    .media-list {
+      list-style: none;
+      margin: 0;
+      padding: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .media-list li {
+      border: 1px solid #e2e8f0;
+      border-radius: 8px;
+      padding: 10px;
+      background: #f8fafc;
+    }
+    .media-row-head {
+      display: flex;
+      justify-content: space-between;
+      gap: 8px;
+      align-items: center;
+    }
+    .media-type {
+      font-size: 0.75rem;
+      font-weight: 700;
+      color: #0369a1;
+    }
+    .media-row-meta {
+      margin-top: 4px;
+      font-size: 0.8rem;
+      color: #64748b;
+    }
+    .media-download {
+      display: inline-block;
+      margin-top: 6px;
+      font-size: 0.82rem;
+      color: #0284c7;
+      text-decoration: none;
+      font-weight: 600;
+    }
+    .media-download:hover {
+      text-decoration: underline;
+    }
     .timeline-card {
       background: #ffffff;
       border-radius: 12px;
@@ -573,6 +700,15 @@ export class EpsPageComponent implements OnInit {
   telemetryPoints: TelemetryPoint[] = [];
   telemetryMetricFilter: 'ALL' | TelemetryMetricType = 'ALL';
   telemetryLoading = false;
+  mediaItems: EquipmentMediaItem[] = [];
+  filteredMediaItems: EquipmentMediaItem[] = [];
+  mediaFilterType: MediaFilterType = 'ALL';
+  mediaLoading = false;
+  mediaUploading = false;
+  mediaError = '';
+  uploadMediaType: EquipmentMediaType = 'PHOTO';
+  uploadMediaAnnotation = '';
+  uploadMediaFile?: File;
   timelineEvents: TimelineEvent[] = [];
   filteredTimelineEvents: TimelineEvent[] = [];
   timelineTypeFilter: 'ALL' | TimelineEventType = 'ALL';
@@ -614,6 +750,7 @@ export class EpsPageComponent implements OnInit {
           if (updated) {
             this.loadSelectedEquipmentDocuments(updated.id);
             this.loadTelemetry(updated.id);
+            this.loadMedia(updated.id);
           }
         }
       },
@@ -628,6 +765,7 @@ export class EpsPageComponent implements OnInit {
     this.selectedEquipment = item;
     this.loadSelectedEquipmentDocuments(item.id);
     this.loadTelemetry(item.id);
+    this.loadMedia(item.id);
   }
 
   get visibleColumnCount(): number {
@@ -730,6 +868,52 @@ export class EpsPageComponent implements OnInit {
     this.loadTelemetry(this.selectedEquipment.id);
   }
 
+  setMediaFilter(value: string): void {
+    if (value === 'PHOTO' || value === 'VIDEO') {
+      this.mediaFilterType = value;
+    } else {
+      this.mediaFilterType = 'ALL';
+    }
+    this.applyMediaFilter();
+  }
+
+  onMediaFileSelected(event: Event): void {
+    const input = event.target as HTMLInputElement | null;
+    this.uploadMediaFile = input?.files?.item(0) ?? undefined;
+  }
+
+  refreshMedia(): void {
+    if (!this.selectedEquipment) {
+      this.mediaItems = [];
+      this.filteredMediaItems = [];
+      return;
+    }
+    this.loadMedia(this.selectedEquipment.id);
+  }
+
+  uploadMedia(): void {
+    if (!this.selectedEquipment || !this.uploadMediaFile) return;
+    this.mediaUploading = true;
+    this.mediaError = '';
+    this.epsService.uploadEquipmentMedia(
+      this.selectedEquipment.id,
+      this.uploadMediaType,
+      this.uploadMediaFile,
+      this.uploadMediaAnnotation
+    ).subscribe({
+      next: () => {
+        this.mediaUploading = false;
+        this.uploadMediaFile = undefined;
+        this.uploadMediaAnnotation = '';
+        this.loadMedia(this.selectedEquipment!.id);
+      },
+      error: (err) => {
+        this.mediaError = err?.error?.message ?? 'Failed to upload media.';
+        this.mediaUploading = false;
+      }
+    });
+  }
+
   private loadSavedFilters(): void {
     const raw = localStorage.getItem(this.filtersStorageKey);
     if (!raw) return;
@@ -806,6 +990,35 @@ export class EpsPageComponent implements OnInit {
         this.telemetryLoading = false;
       }
     });
+  }
+
+  private loadMedia(equipmentId: string): void {
+    this.mediaLoading = true;
+    this.mediaError = '';
+    this.epsService.getEquipmentMedia(equipmentId).subscribe({
+      next: (res) => {
+        this.mediaItems = res.data;
+        this.applyMediaFilter();
+        this.mediaLoading = false;
+      },
+      error: () => {
+        this.mediaItems = [];
+        this.filteredMediaItems = [];
+        this.mediaLoading = false;
+      }
+    });
+  }
+
+  private applyMediaFilter(): void {
+    if (this.mediaFilterType === 'ALL') {
+      this.filteredMediaItems = [...this.mediaItems];
+      return;
+    }
+    this.filteredMediaItems = this.mediaItems.filter((item) => item.mediaType === this.mediaFilterType);
+  }
+
+  buildMediaDownloadUrl(mediaId: string): string {
+    return `/api/v1/eps/equipment/media/${mediaId}/download`;
   }
 
   formatMetric(metricType: TelemetryMetricType): string {

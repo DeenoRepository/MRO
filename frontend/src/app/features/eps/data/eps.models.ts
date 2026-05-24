@@ -59,6 +59,22 @@ export interface TelemetryPoint {
   createdAt: string;
 }
 
+export type EquipmentMediaType = 'PHOTO' | 'VIDEO';
+
+export interface EquipmentMediaItem {
+  id: string;
+  equipmentId: string;
+  mediaType: EquipmentMediaType;
+  fileName: string;
+  filePath: string;
+  mimeType?: string | null;
+  fileSize?: number | null;
+  checksumSha256: string;
+  annotation?: string | null;
+  uploadedAt: string;
+  uploadedBy?: string | null;
+}
+
 export interface ChangeRequest {
   id: string;
   entityType: string;

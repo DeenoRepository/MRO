@@ -2,7 +2,7 @@ import { Injectable } from '@angular/core';
 import { Observable } from 'rxjs';
 import { ApiSuccessResponse } from '../../../core/api/api.models';
 import { ApiClientService } from '../../../core/api/api-client.service';
-import { CreateEquipmentRequest, Equipment, UpdateEquipmentRequest, EquipmentDocument, ChangeRequest, CreateChangeRequest, DecideChangeRequest, TelemetryPoint, TelemetryMetricType } from './eps.models';
+import { CreateEquipmentRequest, Equipment, UpdateEquipmentRequest, EquipmentDocument, ChangeRequest, CreateChangeRequest, DecideChangeRequest, TelemetryPoint, TelemetryMetricType, EquipmentMediaItem, EquipmentMediaType } from './eps.models';
 
 @Injectable({ providedIn: 'root' })
 export class EpsService {
@@ -38,6 +38,25 @@ export class EpsService {
   ): Observable<ApiSuccessResponse<TelemetryPoint[]>> {
     const query = metricType ? `?metricType=${metricType}` : '';
     return this.api.get<TelemetryPoint[]>(`/eps/equipment/${equipmentId}/telemetry${query}`);
+  }
+
+  getEquipmentMedia(equipmentId: string): Observable<ApiSuccessResponse<EquipmentMediaItem[]>> {
+    return this.api.get<EquipmentMediaItem[]>(`/eps/equipment/${equipmentId}/media`);
+  }
+
+  uploadEquipmentMedia(
+    equipmentId: string,
+    mediaType: EquipmentMediaType,
+    file: File,
+    annotation?: string
+  ): Observable<ApiSuccessResponse<EquipmentMediaItem>> {
+    const formData = new FormData();
+    formData.append('mediaType', mediaType);
+    formData.append('file', file);
+    if (annotation && annotation.trim().length > 0) {
+      formData.append('annotation', annotation.trim());
+    }
+    return this.api.post<FormData, EquipmentMediaItem>(`/eps/equipment/${equipmentId}/media`, formData);
   }
 
   uploadEquipmentDocument(
