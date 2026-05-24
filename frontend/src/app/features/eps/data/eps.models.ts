@@ -33,4 +33,39 @@ export interface UpdateEquipmentRequest {
   serialNumber?: string;
   installDate?: string;
 }
+export interface EquipmentDocument {
+  id: string;
+  equipmentId: string;
+  documentType: string;
+  fileName: string;
+  filePath: string;
+  version: number;
+  checksumSha256: string;
+  uploadedAt: string;
+  uploadedBy?: string | null;
+}
 
+export interface ChangeRequest {
+  id: string;
+  entityType: string;
+  entityId?: string | null;
+  changeType: 'CREATE' | 'UPDATE';
+  proposedData: string;
+  status: 'PENDING' | 'APPROVED' | 'REJECTED';
+  requestedBy?: string | null;
+  approvedBy?: string | null;
+  approvalNotes?: string | null;
+  createdAt: string;
+  decidedAt?: string | null;
+}
+
+export interface CreateChangeRequest {
+  entityType: string;
+  entityId?: string;
+  changeType: 'CREATE' | 'UPDATE';
+  proposedData: string;
+}
+
+export interface DecideChangeRequest {
+  approvalNotes?: string;
+}

@@ -1,0 +1,29 @@
+# IDE
+.idea/
+.vscode/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# Gradle
+.gradle/
+build/
+out/
+backend/build/
+backend/out/
+
+# Node/Angular
+node_modules/
+dist/
+.angular/
+frontend/node_modules/
+frontend/dist/
+frontend/.angular/
+package-lock.json
+
+# Local files
+documents_storage/
+backend/documents_storage/
+*.log
