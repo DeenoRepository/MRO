@@ -25,6 +25,10 @@ class EquipmentDocumentService(
     @Value("\${mro.document-storage-dir:./documents_storage}")
     private val storageDir: String
 ) {
+    companion object {
+        private const val DEFAULT_SEARCH_LIMIT = 50
+        private const val MAX_SEARCH_LIMIT = 500
+    }
     init {
         val dir = File(storageDir)
         if (!dir.exists()) {
@@ -127,17 +131,23 @@ class EquipmentDocumentService(
     }
 
     @Transactional(readOnly = true)
-    fun searchDocuments(query: String, equipmentId: UUID?): List<EquipmentDocumentResponse> {
+    fun searchDocuments(query: String, equipmentId: UUID?, limit: Int?): List<EquipmentDocumentResponse> {
         val normalizedQuery = query.trim()
         if (normalizedQuery.length < 2) {
             throw ResponseStatusException(HttpStatus.BAD_REQUEST, "query must be at least 2 characters")
+        }
+        val resolvedLimit = (limit ?: DEFAULT_SEARCH_LIMIT).coerceAtMost(MAX_SEARCH_LIMIT)
+        if (resolvedLimit <= 0) {
+            throw ResponseStatusException(HttpStatus.BAD_REQUEST, "limit must be greater than 0")
         }
         equipmentId?.let {
             if (!equipmentRepository.existsById(it)) {
                 throw ResponseStatusException(HttpStatus.NOT_FOUND, "Equipment not found")
             }
         }
-        return documentRepository.searchDocuments(normalizedQuery, equipmentId).map { it.toResponse() }
+        return documentRepository.searchDocuments(normalizedQuery, equipmentId)
+            .take(resolvedLimit)
+            .map { it.toResponse() }
     }
 
     private fun sha256(bytes: ByteArray): String {

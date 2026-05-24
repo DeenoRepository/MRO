@@ -76,7 +76,7 @@ class ChangeRequestService(
                 throw ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid proposedData for UPDATE request", it)
             }
         } else {
-            throw ResponseStatusException(HttpStatus.BAD_REQUEST, "Unsupported changeType: \${request.changeType}")
+            throw ResponseStatusException(HttpStatus.BAD_REQUEST, "Unsupported changeType: ${request.changeType}")
         }
 
         val entity = ChangeRequestEntity(

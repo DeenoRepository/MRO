@@ -84,7 +84,7 @@ class EquipmentDocumentServiceTest {
     @Test
     fun `search rejects too short query`() {
         val ex = assertThrows(ResponseStatusException::class.java) {
-            service.searchDocuments("a", null)
+            service.searchDocuments("a", null, null)
         }
         assertEquals(HttpStatus.BAD_REQUEST, ex.statusCode)
     }

@@ -2,6 +2,7 @@ package com.company.mro.eps.dto
 
 import com.company.mro.eps.domain.EquipmentStatus
 import jakarta.validation.constraints.NotBlank
+import jakarta.validation.constraints.NotNull
 import jakarta.validation.constraints.Size
 import java.time.Instant
 import java.time.LocalDate
@@ -72,6 +73,7 @@ data class EquipmentQrPayloadResponse(
 )
 
 data class ChangeEquipmentStatusRequest(
+    @field:NotNull
     val status: EquipmentStatus
 )
 

@@ -110,7 +110,7 @@ class EquipmentController(
     @PreAuthorize("hasAuthority('EPS_WRITE')")
     fun changeStatus(
         @PathVariable id: UUID,
-        @RequestBody request: ChangeEquipmentStatusRequest
+        @Valid @RequestBody request: ChangeEquipmentStatusRequest
     ): ApiSuccessResponse<EquipmentResponse> = successResponse(equipmentService.transitionStatus(id, request))
 
     @DeleteMapping("/{id}")

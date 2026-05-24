@@ -52,9 +52,10 @@ class EquipmentDocumentController(
     @PreAuthorize("hasAuthority('EPS_READ')")
     fun searchDocuments(
         @RequestParam("query") query: String,
-        @RequestParam("equipmentId", required = false) equipmentId: UUID?
+        @RequestParam("equipmentId", required = false) equipmentId: UUID?,
+        @RequestParam("limit", required = false) limit: Int?
     ): ApiSuccessResponse<List<EquipmentDocumentResponse>> =
-        successResponse(documentService.searchDocuments(query, equipmentId))
+        successResponse(documentService.searchDocuments(query, equipmentId, limit))
 
     @PostMapping("/{id}/documents")
     @ResponseStatus(HttpStatus.CREATED)
