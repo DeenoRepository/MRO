@@ -8,6 +8,7 @@ import com.company.mro.eps.dto.EquipmentMobileItemResponse
 import com.company.mro.eps.dto.EquipmentMobileListResponse
 import com.company.mro.eps.dto.EquipmentQrPayloadResponse
 import com.company.mro.eps.dto.EquipmentResponse
+import com.company.mro.eps.dto.EquipmentSearchItemResponse
 import com.company.mro.eps.dto.UpdateEquipmentRequest
 import com.company.mro.eps.persistence.EquipmentEntity
 import com.company.mro.eps.persistence.EquipmentRepository
@@ -32,6 +33,26 @@ class EquipmentService(
 
     @Transactional(readOnly = true)
     fun getAll(): List<EquipmentResponse> = equipmentRepository.findAll().map { it.toResponse() }
+
+    @Transactional(readOnly = true)
+    fun search(query: String, limit: Int?): List<EquipmentSearchItemResponse> {
+        val normalized = query.trim().lowercase()
+        if (normalized.length < 2) {
+            throw ResponseStatusException(HttpStatus.BAD_REQUEST, "query must be at least 2 characters")
+        }
+        val resolvedLimit = min(limit ?: DEFAULT_MOBILE_LIMIT, MAX_MOBILE_LIMIT)
+        if (resolvedLimit <= 0) {
+            throw ResponseStatusException(HttpStatus.BAD_REQUEST, "limit must be greater than 0")
+        }
+        return equipmentRepository.findAll()
+            .mapNotNull { entity ->
+                val score = calculateSearchScore(entity, normalized)
+                if (score == 0) null else entity to score
+            }
+            .sortedWith(compareByDescending<Pair<EquipmentEntity, Int>> { it.second }.thenBy { it.first.name })
+            .take(resolvedLimit)
+            .map { (entity, score) -> entity.toSearchItemResponse(score) }
+    }
 
     @Transactional(readOnly = true)
     fun getMobileList(limit: Int?, offset: Int?): EquipmentMobileListResponse {
@@ -171,6 +192,26 @@ class EquipmentService(
         }
     }
 
+    private fun calculateSearchScore(entity: EquipmentEntity, query: String): Int {
+        var score = 0
+        val assetTag = entity.assetTag.lowercase()
+        val name = entity.name.lowercase()
+        val category = entity.category.lowercase()
+        val serial = entity.serialNumber?.lowercase()
+        val location = entity.location?.lowercase()
+        val manufacturer = entity.manufacturer?.lowercase()
+        val model = entity.model?.lowercase()
+
+        if (assetTag == query) score += 120 else if (assetTag.contains(query)) score += 80
+        if (name == query) score += 100 else if (name.contains(query)) score += 70
+        if (serial == query) score += 90 else if (serial?.contains(query) == true) score += 50
+        if (model == query) score += 60 else if (model?.contains(query) == true) score += 35
+        if (manufacturer == query) score += 50 else if (manufacturer?.contains(query) == true) score += 25
+        if (category.contains(query)) score += 20
+        if (location?.contains(query) == true) score += 15
+        return score
+    }
+
     private fun EquipmentEntity.toResponse(): EquipmentResponse = EquipmentResponse(
         id = id,
         assetTag = assetTag,
@@ -193,5 +234,15 @@ class EquipmentService(
         name = name,
         status = status,
         location = location
+    )
+
+    private fun EquipmentEntity.toSearchItemResponse(score: Int): EquipmentSearchItemResponse = EquipmentSearchItemResponse(
+        id = id,
+        assetTag = assetTag,
+        name = name,
+        category = category,
+        status = status,
+        location = location,
+        relevanceScore = score
     )
 }

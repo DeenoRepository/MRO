@@ -9,6 +9,7 @@ import com.company.mro.eps.persistence.EquipmentEntity
 import com.company.mro.eps.persistence.EquipmentRepository
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertThrows
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.extension.ExtendWith
 import org.mockito.InjectMocks
@@ -171,6 +172,40 @@ class EquipmentServiceTest {
     fun `mobile list rejects negative offset`() {
         val ex = assertThrows(ResponseStatusException::class.java) {
             equipmentService.getMobileList(limit = 10, offset = -1)
+        }
+        assertEquals(HttpStatus.BAD_REQUEST, ex.statusCode)
+    }
+
+    @Test
+    fun `search ranks exact asset tag higher than name contains`() {
+        val exact = EquipmentEntity(
+            id = UUID.randomUUID(),
+            assetTag = "PMP-100",
+            name = "Booster",
+            category = "PUMP",
+            status = EquipmentStatus.ACTIVE,
+            updatedAt = Instant.now()
+        )
+        val contains = EquipmentEntity(
+            id = UUID.randomUUID(),
+            assetTag = "AST-2",
+            name = "Pump PMP-100 Auxiliary",
+            category = "PUMP",
+            status = EquipmentStatus.ACTIVE,
+            updatedAt = Instant.now()
+        )
+        whenever(equipmentRepository.findAll()).thenReturn(listOf(contains, exact))
+
+        val response = equipmentService.search("PMP-100", 10)
+
+        assertEquals(exact.id, response.first().id)
+        assertTrue(response.first().relevanceScore >= response.last().relevanceScore)
+    }
+
+    @Test
+    fun `search rejects too short query`() {
+        val ex = assertThrows(ResponseStatusException::class.java) {
+            equipmentService.search("a", 10)
         }
         assertEquals(HttpStatus.BAD_REQUEST, ex.statusCode)
     }

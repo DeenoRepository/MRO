@@ -8,6 +8,7 @@ import com.company.mro.eps.dto.ChangeEquipmentStatusRequest
 import com.company.mro.eps.dto.EquipmentMobileListResponse
 import com.company.mro.eps.dto.EquipmentQrPayloadResponse
 import com.company.mro.eps.dto.EquipmentResponse
+import com.company.mro.eps.dto.EquipmentSearchItemResponse
 import com.company.mro.eps.dto.UpdateEquipmentRequest
 import io.swagger.v3.oas.annotations.Operation
 import io.swagger.v3.oas.annotations.tags.Tag
@@ -45,6 +46,14 @@ class EquipmentController(
         @RequestParam("limit", required = false) limit: Int?,
         @RequestParam("offset", required = false) offset: Int?
     ): ApiSuccessResponse<EquipmentMobileListResponse> = successResponse(equipmentService.getMobileList(limit, offset))
+
+    @GetMapping("/search")
+    @Operation(summary = "Smart equipment search")
+    @PreAuthorize("hasAuthority('EPS_READ')")
+    fun search(
+        @RequestParam("query") query: String,
+        @RequestParam("limit", required = false) limit: Int?
+    ): ApiSuccessResponse<List<EquipmentSearchItemResponse>> = successResponse(equipmentService.search(query, limit))
 
     @GetMapping("/{id}")
     @Operation(summary = "Get equipment by id")

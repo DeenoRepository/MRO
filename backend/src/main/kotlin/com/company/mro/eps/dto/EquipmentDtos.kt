@@ -89,3 +89,13 @@ data class EquipmentMobileListResponse(
     val offset: Int,
     val nextOffset: Int?
 )
+
+data class EquipmentSearchItemResponse(
+    val id: UUID,
+    val assetTag: String,
+    val name: String,
+    val category: String,
+    val status: EquipmentStatus,
+    val location: String?,
+    val relevanceScore: Int
+)
