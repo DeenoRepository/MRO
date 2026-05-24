@@ -1,0 +1,12 @@
+{
+  "name": "mro-frontend",
+  "version": "0.0.1",
+  "private": true,
+  "description": "Angular placeholder for MRO frontend",
+  "scripts": {
+    "start": "echo \"Angular app scaffold pending\"",
+    "build": "echo \"Angular app scaffold pending\"",
+    "test": "echo \"Angular app scaffold pending\""
+  }
+}
+

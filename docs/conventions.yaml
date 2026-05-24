@@ -1,0 +1,127 @@
+project:
+  name: MRO Platform
+  architecture: modular_monolith
+  backend_stack:
+    - Java 21 or Kotlin
+    - Spring Boot 3.x
+    - Spring Security
+    - Spring Data JPA
+    - Flyway
+    - PostgreSQL 16+
+  frontend_stack:
+    - Angular
+    - TypeScript
+
+modules:
+  eps:
+    name: Equipment Passportization System
+    owns:
+      - equipment
+      - equipment_documents
+      - change_requests
+    schema: eps
+    api_prefix: /api/v1/eps
+    may_depend_on:
+      - core
+      - audit
+      - shared
+
+  mms:
+    name: Maintenance Management System
+    owns:
+      - work_orders
+      - pm_schedules
+      - completion_acts
+    schema: mms
+    api_prefix: /api/v1/mms
+    may_depend_on:
+      - eps
+      - wms
+      - core
+      - audit
+      - shared
+
+  wms:
+    name: Warehouse Management System
+    owns:
+      - warehouses
+      - parts
+      - stock_movements
+      - reservations
+    schema: wms
+    api_prefix: /api/v1/wms
+    may_depend_on:
+      - eps
+      - core
+      - audit
+      - shared
+
+  srs:
+    name: Service Request System
+    owns:
+      - tickets
+      - ticket_comments
+      - request_types
+      - external_api_log
+    schema: srs
+    api_prefix: /api/v1/srs
+    may_depend_on:
+      - eps
+      - mms
+      - core
+      - audit
+      - shared
+
+  core:
+    owns:
+      - users
+      - roles
+      - permissions
+      - ldap_group_mappings
+    schema: core
+    may_depend_on:
+      - shared
+
+  audit:
+    owns:
+      - audit_log
+    schema: audit
+    may_depend_on:
+      - shared
+
+forbidden_technologies:
+  - microservices
+  - kafka
+  - rabbitmq
+  - kubernetes
+  - service_mesh
+  - cqrs
+  - event_sourcing
+  - graphql
+  - mongodb
+  - redis_without_approval
+
+security:
+  backend_authorization_required: true
+  frontend_guards_are_security_boundary: false
+  audit_state_changes: true
+  secrets_in_code_allowed: false
+  expose_entities_in_api_allowed: false
+
+database:
+  migration_tool: flyway
+  edit_committed_migrations: false
+  schemas:
+    - core
+    - eps
+    - mms
+    - wms
+    - srs
+    - audit
+    - reporting
+
+agent_response_format:
+  - Implemented
+  - Changed files
+  - Tests
+  - Notes
