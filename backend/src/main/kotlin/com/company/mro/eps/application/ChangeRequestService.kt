@@ -64,6 +64,8 @@ class ChangeRequestService(
             riskLevel = request.riskLevel,
             impactSummary = request.impactSummary?.trim(),
             requiresEscalation = request.riskLevel == ChangeRiskLevel.HIGH || request.riskLevel == ChangeRiskLevel.CRITICAL,
+            approvalsRequired = if (request.riskLevel == ChangeRiskLevel.HIGH || request.riskLevel == ChangeRiskLevel.CRITICAL) 2 else 1,
+            approvalsCompleted = 0,
             status = ChangeRequestStatus.PENDING,
             requestedBy = null,
             createdAt = Instant.now()
@@ -81,29 +83,32 @@ class ChangeRequestService(
             throw ResponseStatusException(HttpStatus.BAD_REQUEST, "Only PENDING change requests can be approved")
         }
 
-        val appliedEntityId: UUID
-        if (request.changeType == "CREATE") {
-            val createReq = objectMapper.readValue(request.proposedData, CreateEquipmentRequest::class.java)
-            val createdEquipment = equipmentService.create(createReq)
-            appliedEntityId = createdEquipment.id
-            request.entityId = appliedEntityId
-        } else {
-            val entityId = request.entityId ?: throw ResponseStatusException(
-                HttpStatus.INTERNAL_SERVER_ERROR,
-                "Change request has no entityId for UPDATE"
-            )
-            val updateReq = objectMapper.readValue(request.proposedData, UpdateEquipmentRequest::class.java)
-            equipmentService.update(entityId, updateReq)
-            appliedEntityId = entityId
+        request.approvalsCompleted += 1
+        request.approvalNotes = decision.approvalNotes?.trim()
+
+        if (request.approvalsCompleted >= request.approvalsRequired) {
+            if (request.changeType == "CREATE") {
+                val createReq = objectMapper.readValue(request.proposedData, CreateEquipmentRequest::class.java)
+                val createdEquipment = equipmentService.create(createReq)
+                request.entityId = createdEquipment.id
+            } else {
+                val entityId = request.entityId ?: throw ResponseStatusException(
+                    HttpStatus.INTERNAL_SERVER_ERROR,
+                    "Change request has no entityId for UPDATE"
+                )
+                val updateReq = objectMapper.readValue(request.proposedData, UpdateEquipmentRequest::class.java)
+                equipmentService.update(entityId, updateReq)
+            }
+            request.status = ChangeRequestStatus.APPROVED
+            request.decidedAt = Instant.now()
+            request.approvedBy = null
+            val saved = changeRequestRepository.save(request)
+            auditService.log("EPS_CHANGE_REQUEST_APPROVED", "EPS", "change_request", saved.id.toString())
+            return saved.toResponse()
         }
 
-        request.status = ChangeRequestStatus.APPROVED
-        request.approvalNotes = decision.approvalNotes?.trim()
-        request.decidedAt = Instant.now()
-        request.approvedBy = null
-
         val saved = changeRequestRepository.save(request)
-        auditService.log("EPS_CHANGE_REQUEST_APPROVED", "EPS", "change_request", saved.id.toString())
+        auditService.log("EPS_CHANGE_REQUEST_APPROVAL_STEP_COMPLETED", "EPS", "change_request", saved.id.toString())
         return saved.toResponse()
     }
 
@@ -137,6 +142,8 @@ class ChangeRequestService(
         riskLevel = riskLevel,
         impactSummary = impactSummary,
         requiresEscalation = requiresEscalation,
+        approvalsRequired = approvalsRequired,
+        approvalsCompleted = approvalsCompleted,
         status = status,
         requestedBy = requestedBy,
         approvedBy = approvedBy,

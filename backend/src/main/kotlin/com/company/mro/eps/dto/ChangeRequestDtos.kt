@@ -38,6 +38,8 @@ data class ChangeRequestResponse(
     val riskLevel: ChangeRiskLevel,
     val impactSummary: String?,
     val requiresEscalation: Boolean,
+    val approvalsRequired: Int,
+    val approvalsCompleted: Int,
     val status: ChangeRequestStatus,
     val requestedBy: UUID?,
     val approvedBy: UUID?,

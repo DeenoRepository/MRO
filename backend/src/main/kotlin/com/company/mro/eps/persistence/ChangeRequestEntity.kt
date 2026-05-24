@@ -43,6 +43,12 @@ class ChangeRequestEntity(
     @Column(name = "requires_escalation", nullable = false)
     var requiresEscalation: Boolean = false,
 
+    @Column(name = "approvals_required", nullable = false)
+    var approvalsRequired: Int = 1,
+
+    @Column(name = "approvals_completed", nullable = false)
+    var approvalsCompleted: Int = 0,
+
     @Column(name = "requested_by")
     var requestedBy: UUID? = null,
 

@@ -1,0 +1,3 @@
+ALTER TABLE eps.change_requests
+    ADD COLUMN IF NOT EXISTS approvals_required INTEGER NOT NULL DEFAULT 1,
+    ADD COLUMN IF NOT EXISTS approvals_completed INTEGER NOT NULL DEFAULT 0;
