@@ -43,6 +43,7 @@ class SecurityConfig {
                 "EPS_APPROVE",
                 "EPS_CATEGORY_MANAGE",
                 "EPS_COMPLIANCE_MANAGE",
+                "EPS_TELEMETRY_WRITE",
                 "MMS_READ",
                 "MMS_WRITE",
                 "MMS_ASSIGN",
