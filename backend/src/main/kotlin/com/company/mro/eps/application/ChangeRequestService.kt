@@ -2,6 +2,7 @@ package com.company.mro.eps.application
 
 import com.company.mro.audit.application.AuditService
 import com.company.mro.eps.domain.ChangeRequestStatus
+import com.company.mro.eps.domain.ChangeRiskLevel
 import com.company.mro.eps.dto.ChangeRequestResponse
 import com.company.mro.eps.dto.CreateChangeRequest
 import com.company.mro.eps.dto.CreateEquipmentRequest
@@ -60,6 +61,9 @@ class ChangeRequestService(
             entityId = request.entityId,
             changeType = request.changeType.trim().uppercase(),
             proposedData = request.proposedData.trim(),
+            riskLevel = request.riskLevel,
+            impactSummary = request.impactSummary?.trim(),
+            requiresEscalation = request.riskLevel == ChangeRiskLevel.HIGH || request.riskLevel == ChangeRiskLevel.CRITICAL,
             status = ChangeRequestStatus.PENDING,
             requestedBy = null,
             createdAt = Instant.now()
@@ -130,6 +134,9 @@ class ChangeRequestService(
         entityId = entityId,
         changeType = changeType,
         proposedData = proposedData,
+        riskLevel = riskLevel,
+        impactSummary = impactSummary,
+        requiresEscalation = requiresEscalation,
         status = status,
         requestedBy = requestedBy,
         approvedBy = approvedBy,

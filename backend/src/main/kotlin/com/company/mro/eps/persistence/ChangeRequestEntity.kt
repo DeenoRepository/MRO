@@ -1,6 +1,7 @@
 package com.company.mro.eps.persistence
 
 import com.company.mro.eps.domain.ChangeRequestStatus
+import com.company.mro.eps.domain.ChangeRiskLevel
 import jakarta.persistence.Column
 import jakarta.persistence.Entity
 import jakarta.persistence.EnumType
@@ -31,6 +32,16 @@ class ChangeRequestEntity(
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 32)
     var status: ChangeRequestStatus = ChangeRequestStatus.PENDING,
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "risk_level", nullable = false, length = 16)
+    var riskLevel: ChangeRiskLevel = ChangeRiskLevel.MEDIUM,
+
+    @Column(name = "impact_summary")
+    var impactSummary: String? = null,
+
+    @Column(name = "requires_escalation", nullable = false)
+    var requiresEscalation: Boolean = false,
 
     @Column(name = "requested_by")
     var requestedBy: UUID? = null,

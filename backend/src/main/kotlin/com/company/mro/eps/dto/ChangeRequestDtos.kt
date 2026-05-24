@@ -1,6 +1,7 @@
 package com.company.mro.eps.dto
 
 import com.company.mro.eps.domain.ChangeRequestStatus
+import com.company.mro.eps.domain.ChangeRiskLevel
 import jakarta.validation.constraints.NotBlank
 import jakarta.validation.constraints.Size
 import java.time.Instant
@@ -18,7 +19,10 @@ data class CreateChangeRequest(
     val changeType: String, // 'CREATE' or 'UPDATE'
 
     @field:NotBlank
-    val proposedData: String // Serialized JSON string of the entity request
+    val proposedData: String, // Serialized JSON string of the entity request
+    val riskLevel: ChangeRiskLevel = ChangeRiskLevel.MEDIUM,
+    @field:Size(max = 2000)
+    val impactSummary: String? = null
 )
 
 data class DecideChangeRequest(
@@ -31,6 +35,9 @@ data class ChangeRequestResponse(
     val entityId: UUID?,
     val changeType: String,
     val proposedData: String,
+    val riskLevel: ChangeRiskLevel,
+    val impactSummary: String?,
+    val requiresEscalation: Boolean,
     val status: ChangeRequestStatus,
     val requestedBy: UUID?,
     val approvedBy: UUID?,
