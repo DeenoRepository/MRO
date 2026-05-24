@@ -32,6 +32,7 @@ class EquipmentService(
             throw ResponseStatusException(HttpStatus.CONFLICT, "Equipment assetTag already exists")
         }
         equipmentCategoryService.ensureActiveCategoryExists(request.category)
+        request.parentEquipmentId?.let { ensureParentExists(it) }
 
         val now = Instant.now()
         val entity = EquipmentEntity(
@@ -44,6 +45,7 @@ class EquipmentService(
             manufacturer = request.manufacturer?.trim(),
             model = request.model?.trim(),
             serialNumber = request.serialNumber?.trim(),
+            parentEquipmentId = request.parentEquipmentId,
             installDate = request.installDate,
             createdAt = now,
             updatedAt = now
@@ -57,12 +59,19 @@ class EquipmentService(
     fun update(id: UUID, request: UpdateEquipmentRequest): EquipmentResponse {
         val entity = findEntity(id)
         equipmentCategoryService.ensureActiveCategoryExists(request.category)
+        request.parentEquipmentId?.let {
+            if (it == id) {
+                throw ResponseStatusException(HttpStatus.BAD_REQUEST, "Equipment cannot be parent of itself")
+            }
+            ensureParentExists(it)
+        }
         entity.name = request.name.trim()
         entity.category = request.category.trim()
         entity.location = request.location?.trim()
         entity.manufacturer = request.manufacturer?.trim()
         entity.model = request.model?.trim()
         entity.serialNumber = request.serialNumber?.trim()
+        entity.parentEquipmentId = request.parentEquipmentId
         entity.installDate = request.installDate
         entity.updatedAt = Instant.now()
         val saved = equipmentRepository.save(entity)
@@ -85,6 +94,12 @@ class EquipmentService(
 
     override fun existsById(id: UUID): Boolean = equipmentRepository.existsById(id)
 
+    private fun ensureParentExists(id: UUID) {
+        if (!equipmentRepository.existsById(id)) {
+            throw ResponseStatusException(HttpStatus.BAD_REQUEST, "Parent equipment not found")
+        }
+    }
+
     private fun EquipmentEntity.toResponse(): EquipmentResponse = EquipmentResponse(
         id = id,
         assetTag = assetTag,
@@ -95,6 +110,7 @@ class EquipmentService(
         manufacturer = manufacturer,
         model = model,
         serialNumber = serialNumber,
+        parentEquipmentId = parentEquipmentId,
         installDate = installDate,
         createdAt = createdAt,
         updatedAt = updatedAt

@@ -25,6 +25,7 @@ data class CreateEquipmentRequest(
     val model: String? = null,
     @field:Size(max = 128)
     val serialNumber: String? = null,
+    val parentEquipmentId: UUID? = null,
     val installDate: LocalDate? = null
 )
 
@@ -43,6 +44,7 @@ data class UpdateEquipmentRequest(
     val model: String? = null,
     @field:Size(max = 128)
     val serialNumber: String? = null,
+    val parentEquipmentId: UUID? = null,
     val installDate: LocalDate? = null
 )
 
@@ -56,8 +58,8 @@ data class EquipmentResponse(
     val manufacturer: String?,
     val model: String?,
     val serialNumber: String?,
+    val parentEquipmentId: UUID?,
     val installDate: LocalDate?,
     val createdAt: Instant,
     val updatedAt: Instant
 )
-

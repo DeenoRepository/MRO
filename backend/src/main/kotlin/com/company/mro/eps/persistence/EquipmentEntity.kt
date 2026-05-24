@@ -33,6 +33,8 @@ class EquipmentEntity(
     var model: String? = null,
     @Column(name = "serial_number", length = 128)
     var serialNumber: String? = null,
+    @Column(name = "parent_equipment_id")
+    var parentEquipmentId: UUID? = null,
     @Column(name = "install_date")
     var installDate: LocalDate? = null,
     @Column(columnDefinition = "jsonb")
@@ -42,4 +44,3 @@ class EquipmentEntity(
     @Column(name = "updated_at", nullable = false)
     var updatedAt: Instant = Instant.now()
 )
-

@@ -2,6 +2,9 @@ package com.company.mro.eps.application
 
 import com.company.mro.audit.application.AuditService
 import com.company.mro.eps.dto.CreateEquipmentRequest
+import com.company.mro.eps.dto.UpdateEquipmentRequest
+import com.company.mro.eps.domain.EquipmentStatus
+import com.company.mro.eps.persistence.EquipmentEntity
 import com.company.mro.eps.persistence.EquipmentRepository
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertThrows
@@ -13,6 +16,9 @@ import org.mockito.junit.jupiter.MockitoExtension
 import org.springframework.http.HttpStatus
 import org.springframework.web.server.ResponseStatusException
 import java.time.LocalDate
+import java.time.Instant
+import java.util.Optional
+import java.util.UUID
 import org.mockito.Mockito.`when` as whenever
 
 @ExtendWith(MockitoExtension::class)
@@ -47,6 +53,33 @@ class EquipmentServiceTest {
 
         val ex = assertThrows(ResponseStatusException::class.java) {
             equipmentService.create(request)
+        }
+
+        assertEquals(HttpStatus.BAD_REQUEST, ex.statusCode)
+    }
+
+    @Test
+    fun `update fails when parent equals self`() {
+        val id = UUID.randomUUID()
+        val entity = EquipmentEntity(
+            id = id,
+            assetTag = "AST-1",
+            name = "Pump",
+            category = "PUMP",
+            status = EquipmentStatus.ACTIVE,
+            createdAt = Instant.now(),
+            updatedAt = Instant.now()
+        )
+        whenever(equipmentRepository.findById(id)).thenReturn(Optional.of(entity))
+
+        val request = UpdateEquipmentRequest(
+            name = "Pump",
+            category = "PUMP",
+            parentEquipmentId = id
+        )
+
+        val ex = assertThrows(ResponseStatusException::class.java) {
+            equipmentService.update(id, request)
         }
 
         assertEquals(HttpStatus.BAD_REQUEST, ex.statusCode)
