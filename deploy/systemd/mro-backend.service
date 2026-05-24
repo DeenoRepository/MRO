@@ -1,0 +1,21 @@
+[Unit]
+Description=MRO Backend Service
+After=network.target
+Wants=network.target
+
+[Service]
+Type=simple
+User=mro
+Group=mro
+WorkingDirectory=/opt/mro/backend
+EnvironmentFile=/etc/mro/mro-backend.env
+ExecStart=/usr/bin/java -jar /opt/mro/backend/app.jar
+SuccessExitStatus=143
+Restart=on-failure
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target
+

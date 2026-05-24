@@ -148,3 +148,16 @@ Update docs only if:
 - developer workflow changes.
 
 Do not add verbose documentation for obvious code.
+
+---
+
+# Deployment Assets
+
+Systemd deployment templates are available under:
+
+- `deploy/systemd/mro-backend.service`
+- `deploy/systemd/mro-backend.env.example`
+
+Nginx reverse proxy configuration:
+
+- `deploy/nginx/default.conf`
