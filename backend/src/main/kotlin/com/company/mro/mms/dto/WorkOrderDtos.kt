@@ -19,6 +19,9 @@ data class CreateWorkOrderRequest(
     @field:Size(max = 32)
     val priority: String? = null,
     val scheduledDate: Instant? = null,
+    @field:NotBlank
+    @field:Size(max = 255)
+    val title: String,
     @field:Size(max = 2000)
     val description: String? = null
 )
@@ -26,6 +29,42 @@ data class CreateWorkOrderRequest(
 data class AssignWorkOrderRequest(
     @field:NotNull
     val technicianId: UUID
+)
+
+data class CompleteWorkOrderRequest(
+    @field:NotBlank
+    val completionAct: String, // JSON payload representing task completions & annotations
+    val completionNotes: String? = null
+)
+
+data class CreateTaskRequest(
+    @field:NotBlank
+    @field:Size(max = 255)
+    val title: String,
+    val description: String? = null,
+    val sortOrder: Int = 0
+)
+
+data class TaskResponse(
+    val id: UUID,
+    val workOrderId: UUID,
+    val title: String,
+    val description: String?,
+    val status: String,
+    val sortOrder: Int,
+    val completedAt: Instant?,
+    val completedBy: UUID?,
+    val createdAt: Instant
+)
+
+data class HistoryResponse(
+    val id: UUID,
+    val workOrderId: UUID,
+    val equipmentId: UUID,
+    val eventType: String,
+    val eventData: String?,
+    val createdAt: Instant,
+    val createdBy: UUID?
 )
 
 data class WorkOrderResponse(
@@ -36,10 +75,13 @@ data class WorkOrderResponse(
     val priority: String,
     val status: WorkOrderStatus,
     val scheduledDate: Instant?,
+    val startedAt: Instant?,
     val completedDate: Instant?,
     val technicianId: UUID?,
+    val title: String,
     val description: String?,
+    val completionAct: String?,
+    val signatureHash: String?,
     val createdAt: Instant,
     val updatedAt: Instant
 )
-

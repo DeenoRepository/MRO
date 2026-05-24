@@ -63,9 +63,13 @@ class WorkOrderControllerSecurityTest {
                 priority = "MEDIUM",
                 status = WorkOrderStatus.OPEN,
                 scheduledDate = null,
+                startedAt = null,
                 completedDate = null,
                 technicianId = null,
+                title = "WO Title",
                 description = null,
+                completionAct = null,
+                signatureHash = null,
                 createdAt = Instant.now(),
                 updatedAt = Instant.now()
             )

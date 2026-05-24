@@ -45,5 +45,8 @@ class PmScheduleController(
     fun update(
         @PathVariable id: UUID,
         @Valid @RequestBody request: UpdatePmScheduleRequest
-    ): ApiSuccessResponse<PmScheduleResponse> = successResponse(pmScheduleService.update(id, request))
+    @PostMapping("/generate-due")
+    @Operation(summary = "Generate work orders for due PM schedules")
+    @PreAuthorize("hasAuthority('MMS_WRITE')")
+    fun generateDue(): ApiSuccessResponse<Int> = successResponse(pmScheduleService.generateDueWorkOrders())
 }

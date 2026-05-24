@@ -4,8 +4,11 @@ import com.company.mro.audit.application.AuditService
 import com.company.mro.eps.application.EquipmentLookupService
 import com.company.mro.mms.domain.WorkOrderStatus
 import com.company.mro.mms.dto.AssignWorkOrderRequest
+import com.company.mro.mms.dto.CompleteWorkOrderRequest
+import com.company.mro.mms.persistence.MaintenanceHistoryRepository
 import com.company.mro.mms.persistence.WorkOrderEntity
 import com.company.mro.mms.persistence.WorkOrderRepository
+import com.company.mro.mms.persistence.WorkOrderTaskRepository
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.Test
@@ -25,6 +28,12 @@ class WorkOrderServiceTest {
     private lateinit var workOrderRepository: WorkOrderRepository
 
     @Mock
+    private lateinit var taskRepository: WorkOrderTaskRepository
+
+    @Mock
+    private lateinit var historyRepository: MaintenanceHistoryRepository
+
+    @Mock
     private lateinit var equipmentLookupService: EquipmentLookupService
 
     @Mock
@@ -42,13 +51,14 @@ class WorkOrderServiceTest {
             equipmentId = UUID.randomUUID(),
             type = "CORRECTIVE",
             status = WorkOrderStatus.OPEN,
+            title = "Inspection",
             createdAt = Instant.now(),
             updatedAt = Instant.now()
         )
         whenever(workOrderRepository.findById(id)).thenReturn(Optional.of(entity))
 
         assertThrows(ResponseStatusException::class.java) {
-            workOrderService.complete(id)
+            workOrderService.complete(id, CompleteWorkOrderRequest(completionAct = "{}"))
         }
     }
 
@@ -61,6 +71,7 @@ class WorkOrderServiceTest {
             equipmentId = UUID.randomUUID(),
             type = "CORRECTIVE",
             status = WorkOrderStatus.OPEN,
+            title = "Repair",
             createdAt = Instant.now(),
             updatedAt = Instant.now()
         )
@@ -68,7 +79,11 @@ class WorkOrderServiceTest {
         whenever(workOrderRepository.save(entity)).thenReturn(entity)
 
         workOrderService.assign(id, AssignWorkOrderRequest(UUID.randomUUID()))
-        val response = workOrderService.complete(id)
+        
+        // Start Work Order
+        workOrderService.start(id)
+
+        val response = workOrderService.complete(id, CompleteWorkOrderRequest(completionAct = "{}"))
 
         assertEquals(WorkOrderStatus.COMPLETED, response.status)
     }

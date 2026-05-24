@@ -15,28 +15,56 @@ import java.util.UUID
 class WorkOrderEntity(
     @Id
     var id: UUID,
+
     @Column(name = "wo_number", nullable = false, unique = true, length = 64)
     var woNumber: String,
+
     @Column(name = "equipment_id", nullable = false)
     var equipmentId: UUID,
+
     @Column(nullable = false, length = 32)
     var type: String,
+
     @Column(nullable = false, length = 32)
     var priority: String = "MEDIUM",
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 32)
     var status: WorkOrderStatus = WorkOrderStatus.OPEN,
+
     @Column(name = "scheduled_date")
     var scheduledDate: Instant? = null,
+
+    @Column(name = "started_at")
+    var startedAt: Instant? = null,
+
     @Column(name = "completed_date")
     var completedDate: Instant? = null,
+
     @Column(name = "technician_id")
     var technicianId: UUID? = null,
+
+    @Column(nullable = false, length = 255)
+    var title: String,
+
     @Column(columnDefinition = "text")
     var description: String? = null,
+
+    @Column(name = "completion_act", columnDefinition = "jsonb")
+    var completionAct: String? = null,
+
+    @Column(name = "signature_hash", length = 64)
+    var signatureHash: String? = null,
+
+    @Column(name = "created_by")
+    var createdBy: UUID? = null,
+
+    @Column(name = "updated_by")
+    var updatedBy: UUID? = null,
+
     @Column(name = "created_at", nullable = false)
     var createdAt: Instant = Instant.now(),
+
     @Column(name = "updated_at", nullable = false)
     var updatedAt: Instant = Instant.now()
 )
-
