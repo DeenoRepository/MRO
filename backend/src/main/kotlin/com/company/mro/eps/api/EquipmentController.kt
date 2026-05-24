@@ -4,6 +4,7 @@ import com.company.mro.core.api.ApiSuccessResponse
 import com.company.mro.eps.application.EquipmentService
 import com.company.mro.core.api.successResponse
 import com.company.mro.eps.dto.CreateEquipmentRequest
+import com.company.mro.eps.dto.EquipmentQrPayloadResponse
 import com.company.mro.eps.dto.EquipmentResponse
 import com.company.mro.eps.dto.UpdateEquipmentRequest
 import io.swagger.v3.oas.annotations.Operation
@@ -38,6 +39,12 @@ class EquipmentController(
     @PreAuthorize("hasAuthority('EPS_READ')")
     fun getById(@PathVariable id: UUID): ApiSuccessResponse<EquipmentResponse> =
         successResponse(equipmentService.getById(id))
+
+    @GetMapping("/{id}/qr-payload")
+    @Operation(summary = "Get QR payload for equipment quick actions")
+    @PreAuthorize("hasAuthority('EPS_READ')")
+    fun getQrPayload(@PathVariable id: UUID): ApiSuccessResponse<EquipmentQrPayloadResponse> =
+        successResponse(equipmentService.getQrPayload(id))
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)

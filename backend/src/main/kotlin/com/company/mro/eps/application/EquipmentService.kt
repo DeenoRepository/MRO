@@ -3,6 +3,7 @@ package com.company.mro.eps.application
 import com.company.mro.audit.application.AuditService
 import com.company.mro.eps.domain.EquipmentStatus
 import com.company.mro.eps.dto.CreateEquipmentRequest
+import com.company.mro.eps.dto.EquipmentQrPayloadResponse
 import com.company.mro.eps.dto.EquipmentResponse
 import com.company.mro.eps.dto.UpdateEquipmentRequest
 import com.company.mro.eps.persistence.EquipmentEntity
@@ -25,6 +26,17 @@ class EquipmentService(
 
     @Transactional(readOnly = true)
     fun getById(id: UUID): EquipmentResponse = findEntity(id).toResponse()
+
+    @Transactional(readOnly = true)
+    fun getQrPayload(id: UUID): EquipmentQrPayloadResponse {
+        findEntity(id)
+        return EquipmentQrPayloadResponse(
+            equipmentId = id,
+            equipmentUrl = "/eps/equipment/$id",
+            createTicketUrl = "/srs/tickets/new?equipmentId=$id",
+            openWorkOrdersUrl = "/mms/work-orders?equipmentId=$id"
+        )
+    }
 
     @Transactional
     fun create(request: CreateEquipmentRequest): EquipmentResponse {

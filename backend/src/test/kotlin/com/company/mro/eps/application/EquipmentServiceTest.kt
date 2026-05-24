@@ -84,4 +84,24 @@ class EquipmentServiceTest {
 
         assertEquals(HttpStatus.BAD_REQUEST, ex.statusCode)
     }
+
+    @Test
+    fun `qr payload returns equipment quick action links`() {
+        val id = UUID.randomUUID()
+        val entity = EquipmentEntity(
+            id = id,
+            assetTag = "AST-1",
+            name = "Pump",
+            category = "PUMP",
+            status = EquipmentStatus.ACTIVE,
+            createdAt = Instant.now(),
+            updatedAt = Instant.now()
+        )
+        whenever(equipmentRepository.findById(id)).thenReturn(Optional.of(entity))
+
+        val response = equipmentService.getQrPayload(id)
+
+        assertEquals(id, response.equipmentId)
+        assertEquals("/eps/equipment/$id", response.equipmentUrl)
+    }
 }

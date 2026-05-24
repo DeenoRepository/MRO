@@ -63,3 +63,10 @@ data class EquipmentResponse(
     val createdAt: Instant,
     val updatedAt: Instant
 )
+
+data class EquipmentQrPayloadResponse(
+    val equipmentId: UUID,
+    val equipmentUrl: String,
+    val createTicketUrl: String,
+    val openWorkOrdersUrl: String
+)
