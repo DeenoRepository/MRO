@@ -1,36 +1,23 @@
 # MRO Platform Monorepo (Initial Skeleton)
 
-Initial skeleton only:
+Current status:
 
-- `backend/` Spring Boot 3 + Kotlin + Flyway configuration
+- `backend/` Spring Boot 3 + Kotlin + Flyway modules (Core, EPS, MMS, WMS, SRS + Audit)
 - `frontend/` Angular placeholder structure
-- `docker-compose.yml` with PostgreSQL 16
+- `docker-compose.yml` with PostgreSQL 16, backend container, and Nginx reverse proxy
 
 ## Local Run
 
-1. Start PostgreSQL:
+1. Start full local stack:
 
 ```bash
-docker compose up -d postgres
+docker compose up --build
 ```
 
-2. Run backend:
+2. Verify services:
 
-```bash
-cd backend
-gradle bootRun
-```
-
-3. Verify backend:
-
-- Health: `http://localhost:8080/actuator/health`
+- Backend health: `http://localhost:8080/actuator/health`
 - OpenAPI: `http://localhost:8080/v3/api-docs`
 - Swagger UI: `http://localhost:8080/swagger-ui.html`
-- Secured endpoint: `http://localhost:8080/api/v1/core/me` (Basic Auth `viewer/viewer` or `admin/admin`)
-
-4. Frontend placeholder:
-
-```bash
-cd frontend
-npm run start
-```
+- Nginx frontend placeholder: `http://localhost/`
+- Nginx API proxy: `http://localhost/api/v1/core/me` (Basic Auth `viewer/viewer` or `admin/admin`)
