@@ -5,6 +5,7 @@ import com.company.mro.eps.application.EquipmentService
 import com.company.mro.core.api.successResponse
 import com.company.mro.eps.dto.CreateEquipmentRequest
 import com.company.mro.eps.dto.ChangeEquipmentStatusRequest
+import com.company.mro.eps.dto.EquipmentMobileListResponse
 import com.company.mro.eps.dto.EquipmentQrPayloadResponse
 import com.company.mro.eps.dto.EquipmentResponse
 import com.company.mro.eps.dto.UpdateEquipmentRequest
@@ -21,6 +22,7 @@ import org.springframework.web.bind.annotation.PutMapping
 import org.springframework.web.bind.annotation.PatchMapping
 import org.springframework.web.bind.annotation.RequestBody
 import org.springframework.web.bind.annotation.RequestMapping
+import org.springframework.web.bind.annotation.RequestParam
 import org.springframework.web.bind.annotation.ResponseStatus
 import org.springframework.web.bind.annotation.RestController
 import java.util.UUID
@@ -35,6 +37,14 @@ class EquipmentController(
     @Operation(summary = "List equipment")
     @PreAuthorize("hasAuthority('EPS_READ')")
     fun getAll(): ApiSuccessResponse<List<EquipmentResponse>> = successResponse(equipmentService.getAll())
+
+    @GetMapping("/mobile")
+    @Operation(summary = "List equipment with compact payload for mobile clients")
+    @PreAuthorize("hasAuthority('EPS_READ')")
+    fun getMobileList(
+        @RequestParam("limit", required = false) limit: Int?,
+        @RequestParam("offset", required = false) offset: Int?
+    ): ApiSuccessResponse<EquipmentMobileListResponse> = successResponse(equipmentService.getMobileList(limit, offset))
 
     @GetMapping("/{id}")
     @Operation(summary = "Get equipment by id")

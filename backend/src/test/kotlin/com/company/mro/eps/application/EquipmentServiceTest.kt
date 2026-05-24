@@ -146,4 +146,32 @@ class EquipmentServiceTest {
 
         assertEquals(HttpStatus.BAD_REQUEST, ex.statusCode)
     }
+
+    @Test
+    fun `mobile list returns next offset when more data exists`() {
+        val items = (1..3).map { i ->
+            EquipmentEntity(
+                id = UUID.randomUUID(),
+                assetTag = "AST-$i",
+                name = "Equipment $i",
+                category = "PUMP",
+                status = EquipmentStatus.ACTIVE,
+                updatedAt = Instant.now().plusSeconds(i.toLong())
+            )
+        }
+        whenever(equipmentRepository.findAll()).thenReturn(items)
+
+        val response = equipmentService.getMobileList(limit = 2, offset = 0)
+
+        assertEquals(2, response.items.size)
+        assertEquals(2, response.nextOffset)
+    }
+
+    @Test
+    fun `mobile list rejects negative offset`() {
+        val ex = assertThrows(ResponseStatusException::class.java) {
+            equipmentService.getMobileList(limit = 10, offset = -1)
+        }
+        assertEquals(HttpStatus.BAD_REQUEST, ex.statusCode)
+    }
 }

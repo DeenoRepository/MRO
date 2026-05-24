@@ -74,3 +74,18 @@ data class EquipmentQrPayloadResponse(
 data class ChangeEquipmentStatusRequest(
     val status: EquipmentStatus
 )
+
+data class EquipmentMobileItemResponse(
+    val id: UUID,
+    val assetTag: String,
+    val name: String,
+    val status: EquipmentStatus,
+    val location: String?
+)
+
+data class EquipmentMobileListResponse(
+    val items: List<EquipmentMobileItemResponse>,
+    val limit: Int,
+    val offset: Int,
+    val nextOffset: Int?
+)

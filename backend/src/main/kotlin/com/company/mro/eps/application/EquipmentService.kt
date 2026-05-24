@@ -4,6 +4,8 @@ import com.company.mro.audit.application.AuditService
 import com.company.mro.eps.domain.EquipmentStatus
 import com.company.mro.eps.dto.CreateEquipmentRequest
 import com.company.mro.eps.dto.ChangeEquipmentStatusRequest
+import com.company.mro.eps.dto.EquipmentMobileItemResponse
+import com.company.mro.eps.dto.EquipmentMobileListResponse
 import com.company.mro.eps.dto.EquipmentQrPayloadResponse
 import com.company.mro.eps.dto.EquipmentResponse
 import com.company.mro.eps.dto.UpdateEquipmentRequest
@@ -15,6 +17,7 @@ import org.springframework.transaction.annotation.Transactional
 import org.springframework.web.server.ResponseStatusException
 import java.time.Instant
 import java.util.UUID
+import kotlin.math.min
 
 @Service
 class EquipmentService(
@@ -22,8 +25,38 @@ class EquipmentService(
     private val equipmentCategoryService: EquipmentCategoryService,
     private val auditService: AuditService
 ) : EquipmentLookupService {
+    companion object {
+        private const val DEFAULT_MOBILE_LIMIT = 20
+        private const val MAX_MOBILE_LIMIT = 100
+    }
+
     @Transactional(readOnly = true)
     fun getAll(): List<EquipmentResponse> = equipmentRepository.findAll().map { it.toResponse() }
+
+    @Transactional(readOnly = true)
+    fun getMobileList(limit: Int?, offset: Int?): EquipmentMobileListResponse {
+        val resolvedLimit = min(limit ?: DEFAULT_MOBILE_LIMIT, MAX_MOBILE_LIMIT)
+        if (resolvedLimit <= 0) {
+            throw ResponseStatusException(HttpStatus.BAD_REQUEST, "limit must be greater than 0")
+        }
+        val resolvedOffset = offset ?: 0
+        if (resolvedOffset < 0) {
+            throw ResponseStatusException(HttpStatus.BAD_REQUEST, "offset must be greater than or equal to 0")
+        }
+        val all = equipmentRepository.findAll()
+            .sortedByDescending { it.updatedAt }
+            .drop(resolvedOffset)
+            .take(resolvedLimit + 1)
+            .map { it.toMobileItemResponse() }
+        val hasMore = all.size > resolvedLimit
+        val items = if (hasMore) all.take(resolvedLimit) else all
+        return EquipmentMobileListResponse(
+            items = items,
+            limit = resolvedLimit,
+            offset = resolvedOffset,
+            nextOffset = if (hasMore) resolvedOffset + resolvedLimit else null
+        )
+    }
 
     @Transactional(readOnly = true)
     fun getById(id: UUID): EquipmentResponse = findEntity(id).toResponse()
@@ -152,5 +185,13 @@ class EquipmentService(
         installDate = installDate,
         createdAt = createdAt,
         updatedAt = updatedAt
+    )
+
+    private fun EquipmentEntity.toMobileItemResponse(): EquipmentMobileItemResponse = EquipmentMobileItemResponse(
+        id = id,
+        assetTag = assetTag,
+        name = name,
+        status = status,
+        location = location
     )
 }
