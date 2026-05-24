@@ -4,6 +4,7 @@ import com.company.mro.core.api.ApiSuccessResponse
 import com.company.mro.core.api.successResponse
 import com.company.mro.eps.application.ChangeRequestService
 import com.company.mro.eps.dto.ChangeRequestResponse
+import com.company.mro.eps.dto.ChangeRequestAnalyticsResponse
 import com.company.mro.eps.dto.CreateChangeRequest
 import com.company.mro.eps.dto.DecideChangeRequest
 import io.swagger.v3.oas.annotations.Operation
@@ -26,6 +27,13 @@ import java.util.UUID
 class ChangeRequestController(
     private val changeRequestService: ChangeRequestService
 ) {
+    @GetMapping("/analytics")
+    @Operation(summary = "Get change request approval analytics")
+    @PreAuthorize("hasAuthority('EPS_READ')")
+    fun getAnalytics(): ApiSuccessResponse<ChangeRequestAnalyticsResponse> {
+        return successResponse(changeRequestService.getAnalytics())
+    }
+
     @GetMapping
     @Operation(summary = "List all change requests")
     @PreAuthorize("hasAuthority('EPS_READ')")

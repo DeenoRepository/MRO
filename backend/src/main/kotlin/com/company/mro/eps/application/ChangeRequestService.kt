@@ -4,6 +4,7 @@ import com.company.mro.audit.application.AuditService
 import com.company.mro.eps.domain.ChangeRequestStatus
 import com.company.mro.eps.domain.ChangeRiskLevel
 import com.company.mro.eps.dto.ChangeRequestResponse
+import com.company.mro.eps.dto.ChangeRequestAnalyticsResponse
 import com.company.mro.eps.dto.CreateChangeRequest
 import com.company.mro.eps.dto.CreateEquipmentRequest
 import com.company.mro.eps.dto.DecideChangeRequest
@@ -16,6 +17,7 @@ import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import org.springframework.web.server.ResponseStatusException
 import java.time.Instant
+import java.time.Duration
 import java.util.UUID
 
 @Service
@@ -32,6 +34,28 @@ class ChangeRequestService(
     @Transactional(readOnly = true)
     fun getById(id: UUID): ChangeRequestResponse =
         findEntity(id).toResponse()
+
+    @Transactional(readOnly = true)
+    fun getAnalytics(): ChangeRequestAnalyticsResponse {
+        val requests = changeRequestRepository.findAll()
+        val decisionDurationsHours = requests.mapNotNull { req ->
+            val decidedAt = req.decidedAt ?: return@mapNotNull null
+            val duration = Duration.between(req.createdAt, decidedAt)
+            if (duration.isNegative) null else duration.toMinutes().toDouble() / 60.0
+        }
+        return ChangeRequestAnalyticsResponse(
+            total = requests.size,
+            pending = requests.count { it.status == ChangeRequestStatus.PENDING },
+            approved = requests.count { it.status == ChangeRequestStatus.APPROVED },
+            rejected = requests.count { it.status == ChangeRequestStatus.REJECTED },
+            escalationRequired = requests.count { it.requiresEscalation },
+            lowRisk = requests.count { it.riskLevel == ChangeRiskLevel.LOW },
+            mediumRisk = requests.count { it.riskLevel == ChangeRiskLevel.MEDIUM },
+            highRisk = requests.count { it.riskLevel == ChangeRiskLevel.HIGH },
+            criticalRisk = requests.count { it.riskLevel == ChangeRiskLevel.CRITICAL },
+            averageDecisionLatencyHours = if (decisionDurationsHours.isEmpty()) null else decisionDurationsHours.average()
+        )
+    }
 
     @Transactional
     fun createChangeRequest(request: CreateChangeRequest): ChangeRequestResponse {

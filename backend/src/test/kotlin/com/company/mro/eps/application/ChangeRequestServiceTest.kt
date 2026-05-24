@@ -108,4 +108,41 @@ class ChangeRequestServiceTest {
         assertEquals(ChangeRequestStatus.APPROVED, second.status)
         assertEquals(2, second.approvalsCompleted)
     }
+
+    @Test
+    fun `analytics aggregates status and latency`() {
+        val first = ChangeRequestEntity(
+            id = UUID.randomUUID(),
+            entityType = "EQUIPMENT",
+            changeType = "CREATE",
+            proposedData = "{}",
+            status = ChangeRequestStatus.APPROVED,
+            riskLevel = ChangeRiskLevel.HIGH,
+            requiresEscalation = true,
+            createdAt = Instant.parse("2026-01-01T00:00:00Z"),
+            decidedAt = Instant.parse("2026-01-01T02:00:00Z")
+        )
+        val second = ChangeRequestEntity(
+            id = UUID.randomUUID(),
+            entityType = "EQUIPMENT",
+            changeType = "UPDATE",
+            proposedData = "{}",
+            status = ChangeRequestStatus.REJECTED,
+            riskLevel = ChangeRiskLevel.LOW,
+            requiresEscalation = false,
+            createdAt = Instant.parse("2026-01-01T00:00:00Z"),
+            decidedAt = Instant.parse("2026-01-01T04:00:00Z")
+        )
+        whenever(changeRequestRepository.findAll()).thenReturn(listOf(first, second))
+
+        val response = service.getAnalytics()
+
+        assertEquals(2, response.total)
+        assertEquals(1, response.approved)
+        assertEquals(1, response.rejected)
+        assertEquals(1, response.escalationRequired)
+        assertEquals(1, response.highRisk)
+        assertEquals(1, response.lowRisk)
+        assertEquals(3.0, response.averageDecisionLatencyHours)
+    }
 }
