@@ -20,6 +20,13 @@ interface TimelineEvent {
   meta?: string;
 }
 
+interface AnalyticsSummary {
+  totalAssets: number;
+  activeAssets: number;
+  telemetryCoveragePercent: number;
+  avgRuntimeHours: number;
+}
+
 @Component({
   selector: 'mro-eps-page',
   standalone: true,
@@ -273,6 +280,30 @@ interface TimelineEvent {
                   <span class="graph-reason">{{ buildRelationReason(rel) }}</span>
                 </li>
               </ul>
+            </section>
+
+            <section class="analytics-card">
+              <header class="analytics-header">
+                <h3>Reliability Snapshot</h3>
+              </header>
+              <div class="analytics-grid">
+                <div class="metric-box">
+                  <div class="metric-label">Total Assets</div>
+                  <div class="metric-value">{{ analyticsSummary.totalAssets }}</div>
+                </div>
+                <div class="metric-box">
+                  <div class="metric-label">Active Assets</div>
+                  <div class="metric-value">{{ analyticsSummary.activeAssets }}</div>
+                </div>
+                <div class="metric-box">
+                  <div class="metric-label">Telemetry Coverage</div>
+                  <div class="metric-value">{{ analyticsSummary.telemetryCoveragePercent }}%</div>
+                </div>
+                <div class="metric-box">
+                  <div class="metric-label">Avg Runtime (h)</div>
+                  <div class="metric-value">{{ analyticsSummary.avgRuntimeHours }}</div>
+                </div>
+              </div>
             </section>
           </div>
           <div class="registry-detail-placeholder" *ngIf="!selectedEquipment">
@@ -666,6 +697,39 @@ interface TimelineEvent {
       margin-left: 6px;
       font-size: 0.78rem;
     }
+    .analytics-card {
+      background: #ffffff;
+      border-radius: 12px;
+      border: 1px solid #e2e8f0;
+      padding: 16px;
+      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.02);
+    }
+    .analytics-header h3 {
+      margin: 0 0 12px 0;
+      font-size: 1rem;
+      color: #0f172a;
+    }
+    .analytics-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 10px;
+    }
+    .metric-box {
+      border: 1px solid #e2e8f0;
+      background: #f8fafc;
+      border-radius: 8px;
+      padding: 10px;
+    }
+    .metric-label {
+      font-size: 0.78rem;
+      color: #64748b;
+    }
+    .metric-value {
+      font-size: 1.1rem;
+      font-weight: 700;
+      color: #0f172a;
+      margin-top: 4px;
+    }
     .timeline-card {
       background: #ffffff;
       border-radius: 12px;
@@ -774,6 +838,12 @@ export class EpsPageComponent implements OnInit {
   uploadMediaAnnotation = '';
   uploadMediaFile?: File;
   relatedEquipment: Equipment[] = [];
+  analyticsSummary: AnalyticsSummary = {
+    totalAssets: 0,
+    activeAssets: 0,
+    telemetryCoveragePercent: 0,
+    avgRuntimeHours: 0
+  };
   timelineEvents: TimelineEvent[] = [];
   filteredTimelineEvents: TimelineEvent[] = [];
   timelineTypeFilter: 'ALL' | TimelineEventType = 'ALL';
@@ -807,6 +877,7 @@ export class EpsPageComponent implements OnInit {
         this.availableCategories = Array.from(new Set(this.equipment.map(e => e.category))).sort();
         this.applyFiltersAndSort();
         this.rebuildTimeline();
+        this.rebuildAnalyticsSummary();
         this.loading = false;
         // Keep selection active if it still exists
         if (this.selectedEquipment) {
@@ -1050,10 +1121,12 @@ export class EpsPageComponent implements OnInit {
     this.epsService.getEquipmentTelemetry(equipmentId, metricType).subscribe({
       next: (res) => {
         this.telemetryPoints = res.data;
+        this.rebuildAnalyticsSummary();
         this.telemetryLoading = false;
       },
       error: () => {
         this.telemetryPoints = [];
+        this.rebuildAnalyticsSummary();
         this.telemetryLoading = false;
       }
     });
@@ -1103,6 +1176,22 @@ export class EpsPageComponent implements OnInit {
       .filter((item) => item.id !== source.id)
       .filter((item) => item.category === source.category || (!!item.location && item.location === source.location))
       .slice(0, 8);
+  }
+
+  private rebuildAnalyticsSummary(): void {
+    const totalAssets = this.equipment.length;
+    const activeAssets = this.equipment.filter((item) => item.status === 'ACTIVE').length;
+    const telemetryCoveragePercent = totalAssets > 0 && this.telemetryPoints.length > 0 ? 100 : 0;
+    const runtimePoints = this.telemetryPoints.filter((item) => item.metricType === 'RUNTIME_HOURS');
+    const avgRuntimeHours = runtimePoints.length === 0
+      ? 0
+      : Number((runtimePoints.reduce((sum, point) => sum + point.metricValue, 0) / runtimePoints.length).toFixed(1));
+    this.analyticsSummary = {
+      totalAssets,
+      activeAssets,
+      telemetryCoveragePercent,
+      avgRuntimeHours
+    };
   }
 
   formatMetric(metricType: TelemetryMetricType): string {
