@@ -1,8 +1,12 @@
 package com.company.mro.wms.api
 
+import com.company.mro.core.api.ApiSuccessResponse
+import com.company.mro.core.api.successResponse
 import com.company.mro.wms.application.PartService
 import com.company.mro.wms.dto.CreatePartRequest
 import com.company.mro.wms.dto.PartResponse
+import io.swagger.v3.oas.annotations.Operation
+import io.swagger.v3.oas.annotations.tags.Tag
 import jakarta.validation.Valid
 import org.springframework.http.HttpStatus
 import org.springframework.security.access.prepost.PreAuthorize
@@ -15,17 +19,19 @@ import org.springframework.web.bind.annotation.RestController
 
 @RestController
 @RequestMapping("/api/v1/wms/parts")
+@Tag(name = "WMS Parts")
 class PartController(
     private val partService: PartService
 ) {
     @GetMapping
+    @Operation(summary = "List parts")
     @PreAuthorize("hasAuthority('WMS_READ')")
-    fun getAll(): List<PartResponse> = partService.getAll()
+    fun getAll(): ApiSuccessResponse<List<PartResponse>> = successResponse(partService.getAll())
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
+    @Operation(summary = "Create part")
     @PreAuthorize("hasAuthority('WMS_WRITE')")
-    fun create(@Valid @RequestBody request: CreatePartRequest): PartResponse =
-        partService.create(request)
+    fun create(@Valid @RequestBody request: CreatePartRequest): ApiSuccessResponse<PartResponse> =
+        successResponse(partService.create(request))
 }
-

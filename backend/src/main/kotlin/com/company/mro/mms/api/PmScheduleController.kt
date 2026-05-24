@@ -1,9 +1,13 @@
 package com.company.mro.mms.api
 
+import com.company.mro.core.api.ApiSuccessResponse
+import com.company.mro.core.api.successResponse
 import com.company.mro.mms.application.PmScheduleService
 import com.company.mro.mms.dto.CreatePmScheduleRequest
 import com.company.mro.mms.dto.PmScheduleResponse
 import com.company.mro.mms.dto.UpdatePmScheduleRequest
+import io.swagger.v3.oas.annotations.Operation
+import io.swagger.v3.oas.annotations.tags.Tag
 import jakarta.validation.Valid
 import org.springframework.http.HttpStatus
 import org.springframework.security.access.prepost.PreAuthorize
@@ -19,22 +23,27 @@ import java.util.UUID
 
 @RestController
 @RequestMapping("/api/v1/mms/pm-schedules")
+@Tag(name = "MMS PM Schedules")
 class PmScheduleController(
     private val pmScheduleService: PmScheduleService
 ) {
     @GetMapping
+    @Operation(summary = "List PM schedules")
     @PreAuthorize("hasAuthority('MMS_READ')")
-    fun getAll(): List<PmScheduleResponse> = pmScheduleService.getAll()
+    fun getAll(): ApiSuccessResponse<List<PmScheduleResponse>> = successResponse(pmScheduleService.getAll())
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
+    @Operation(summary = "Create PM schedule")
     @PreAuthorize("hasAuthority('MMS_WRITE')")
-    fun create(@Valid @RequestBody request: CreatePmScheduleRequest): PmScheduleResponse =
-        pmScheduleService.create(request)
+    fun create(@Valid @RequestBody request: CreatePmScheduleRequest): ApiSuccessResponse<PmScheduleResponse> =
+        successResponse(pmScheduleService.create(request))
 
     @PutMapping("/{id}")
+    @Operation(summary = "Update PM schedule")
     @PreAuthorize("hasAuthority('MMS_WRITE')")
-    fun update(@PathVariable id: UUID, @Valid @RequestBody request: UpdatePmScheduleRequest): PmScheduleResponse =
-        pmScheduleService.update(id, request)
+    fun update(
+        @PathVariable id: UUID,
+        @Valid @RequestBody request: UpdatePmScheduleRequest
+    ): ApiSuccessResponse<PmScheduleResponse> = successResponse(pmScheduleService.update(id, request))
 }
-

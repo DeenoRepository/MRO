@@ -1,8 +1,12 @@
 package com.company.mro.wms.api
 
+import com.company.mro.core.api.ApiSuccessResponse
+import com.company.mro.core.api.successResponse
 import com.company.mro.wms.application.ReservationService
 import com.company.mro.wms.dto.CreateReservationRequest
 import com.company.mro.wms.dto.ReservationResponse
+import io.swagger.v3.oas.annotations.Operation
+import io.swagger.v3.oas.annotations.tags.Tag
 import jakarta.validation.Valid
 import org.springframework.http.HttpStatus
 import org.springframework.security.access.prepost.PreAuthorize
@@ -16,21 +20,26 @@ import java.util.UUID
 
 @RestController
 @RequestMapping("/api/v1/wms/reservations")
+@Tag(name = "WMS Reservations")
 class ReservationController(
     private val reservationService: ReservationService
 ) {
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
+    @Operation(summary = "Create reservation")
     @PreAuthorize("hasAuthority('WMS_RESERVE')")
-    fun create(@Valid @RequestBody request: CreateReservationRequest): ReservationResponse =
-        reservationService.create(request)
+    fun create(@Valid @RequestBody request: CreateReservationRequest): ApiSuccessResponse<ReservationResponse> =
+        successResponse(reservationService.create(request))
 
     @PostMapping("/{id}/release")
+    @Operation(summary = "Release reservation")
     @PreAuthorize("hasAuthority('WMS_RESERVE')")
-    fun release(@PathVariable id: UUID): ReservationResponse = reservationService.release(id)
+    fun release(@PathVariable id: UUID): ApiSuccessResponse<ReservationResponse> =
+        successResponse(reservationService.release(id))
 
     @PostMapping("/{id}/consume")
+    @Operation(summary = "Consume reservation")
     @PreAuthorize("hasAuthority('WMS_CONSUME')")
-    fun consume(@PathVariable id: UUID): ReservationResponse = reservationService.consume(id)
+    fun consume(@PathVariable id: UUID): ApiSuccessResponse<ReservationResponse> =
+        successResponse(reservationService.consume(id))
 }
-

@@ -1,9 +1,13 @@
 package com.company.mro.eps.api
 
+import com.company.mro.core.api.ApiSuccessResponse
 import com.company.mro.eps.application.EquipmentService
+import com.company.mro.core.api.successResponse
 import com.company.mro.eps.dto.CreateEquipmentRequest
 import com.company.mro.eps.dto.EquipmentResponse
 import com.company.mro.eps.dto.UpdateEquipmentRequest
+import io.swagger.v3.oas.annotations.Operation
+import io.swagger.v3.oas.annotations.tags.Tag
 import jakarta.validation.Valid
 import org.springframework.http.HttpStatus
 import org.springframework.security.access.prepost.PreAuthorize
@@ -20,33 +24,39 @@ import java.util.UUID
 
 @RestController
 @RequestMapping("/api/v1/eps/equipment")
+@Tag(name = "EPS Equipment")
 class EquipmentController(
     private val equipmentService: EquipmentService
 ) {
     @GetMapping
+    @Operation(summary = "List equipment")
     @PreAuthorize("hasAuthority('EPS_READ')")
-    fun getAll(): List<EquipmentResponse> = equipmentService.getAll()
+    fun getAll(): ApiSuccessResponse<List<EquipmentResponse>> = successResponse(equipmentService.getAll())
 
     @GetMapping("/{id}")
+    @Operation(summary = "Get equipment by id")
     @PreAuthorize("hasAuthority('EPS_READ')")
-    fun getById(@PathVariable id: UUID): EquipmentResponse = equipmentService.getById(id)
+    fun getById(@PathVariable id: UUID): ApiSuccessResponse<EquipmentResponse> =
+        successResponse(equipmentService.getById(id))
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
+    @Operation(summary = "Create equipment")
     @PreAuthorize("hasAuthority('EPS_WRITE')")
-    fun create(@Valid @RequestBody request: CreateEquipmentRequest): EquipmentResponse =
-        equipmentService.create(request)
+    fun create(@Valid @RequestBody request: CreateEquipmentRequest): ApiSuccessResponse<EquipmentResponse> =
+        successResponse(equipmentService.create(request))
 
     @PutMapping("/{id}")
+    @Operation(summary = "Update equipment")
     @PreAuthorize("hasAuthority('EPS_WRITE')")
     fun update(
         @PathVariable id: UUID,
         @Valid @RequestBody request: UpdateEquipmentRequest
-    ): EquipmentResponse = equipmentService.update(id, request)
+    ): ApiSuccessResponse<EquipmentResponse> = successResponse(equipmentService.update(id, request))
 
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
+    @Operation(summary = "Deactivate equipment")
     @PreAuthorize("hasAuthority('EPS_WRITE')")
     fun deactivate(@PathVariable id: UUID) = equipmentService.deactivate(id)
 }
-

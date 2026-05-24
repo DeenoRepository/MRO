@@ -29,7 +29,6 @@ class CoreSecurityControllerTest {
                 .header("Authorization", "Basic dmlld2VyOnZpZXdlcg==")
         )
             .andExpect(status().isOk)
-            .andExpect(jsonPath("$.username").value("viewer"))
+            .andExpect(jsonPath("$.data.username").value("viewer"))
     }
 }
-
