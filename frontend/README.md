@@ -1,13 +1,19 @@
-# Frontend Placeholder
+# Frontend
 
-This directory is reserved for the Angular application.
+Angular standalone skeleton is initialized.
 
-Planned feature structure:
+Commands:
 
-- `src/app/features/eps`
-- `src/app/features/mms`
-- `src/app/features/wms`
-- `src/app/features/srs`
-- `src/app/features/reporting`
-- `src/app/features/admin`
+- `npm install`
+- `npm run start`
+- `npm run build`
+- `npm run test`
 
+Feature route placeholders:
+
+- `/eps`
+- `/mms`
+- `/wms`
+- `/srs`
+- `/reporting`
+- `/admin`
