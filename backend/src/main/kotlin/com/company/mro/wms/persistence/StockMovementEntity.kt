@@ -27,6 +27,8 @@ class StockMovementEntity(
     var referenceId: UUID? = null,
     @Column(name = "initiated_by")
     var initiatedBy: UUID? = null,
+    @Column(name = "reason")
+    var reason: String? = null,
     @Column(name = "created_at", nullable = false)
     var createdAt: Instant = Instant.now()
 )

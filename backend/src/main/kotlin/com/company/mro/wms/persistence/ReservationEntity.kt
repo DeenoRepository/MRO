@@ -16,22 +16,38 @@ import java.util.UUID
 class ReservationEntity(
     @Id
     var id: UUID,
+
     @Column(name = "warehouse_id", nullable = false)
     var warehouseId: UUID,
+
     @Column(name = "part_id", nullable = false)
     var partId: UUID,
+
     @Column(nullable = false)
     var quantity: BigDecimal,
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 32)
     var status: ReservationStatus = ReservationStatus.RESERVED,
+
     @Column(name = "reference_type", length = 64)
     var referenceType: String? = null,
+
     @Column(name = "reference_id")
     var referenceId: UUID? = null,
+
+    @Column(name = "expires_at")
+    var expiresAt: Instant? = null,
+
+    @Column(name = "created_by")
+    var createdBy: UUID? = null,
+
+    @Column(name = "updated_by")
+    var updatedBy: UUID? = null,
+
     @Column(name = "created_at", nullable = false)
     var createdAt: Instant = Instant.now(),
-    @Column(name = "created_by")
-    var createdBy: UUID? = null
-)
 
+    @Column(name = "updated_at", nullable = false)
+    var updatedAt: Instant = Instant.now()
+)

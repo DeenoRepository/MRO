@@ -11,13 +11,19 @@ import java.util.UUID
 data class CreateReservationRequest(
     @field:NotNull
     val warehouseId: UUID,
+
     @field:NotNull
     val partId: UUID,
+
     @field:DecimalMin("0.001")
     val quantity: BigDecimal,
+
     @field:Size(max = 64)
     val referenceType: String? = null,
-    val referenceId: UUID? = null
+
+    val referenceId: UUID? = null,
+
+    val expiresAt: Instant? = null
 )
 
 data class ReservationResponse(
@@ -28,6 +34,7 @@ data class ReservationResponse(
     val status: ReservationStatus,
     val referenceType: String?,
     val referenceId: UUID?,
-    val createdAt: Instant
+    val expiresAt: Instant?,
+    val createdAt: Instant,
+    val updatedAt: Instant
 )
-

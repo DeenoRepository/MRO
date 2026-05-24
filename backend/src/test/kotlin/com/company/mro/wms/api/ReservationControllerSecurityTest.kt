@@ -63,7 +63,9 @@ class ReservationControllerSecurityTest {
                 status = ReservationStatus.RESERVED,
                 referenceType = null,
                 referenceId = null,
-                createdAt = Instant.now()
+                expiresAt = null,
+                createdAt = Instant.now(),
+                updatedAt = Instant.now()
             )
         )
         mockMvc.perform(
