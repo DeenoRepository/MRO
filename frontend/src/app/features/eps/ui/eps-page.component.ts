@@ -6,6 +6,8 @@ import { CreateEquipmentRequest, Equipment } from '../data/eps.models';
 import { EpsDocumentsComponent } from './eps-documents.component';
 import { EpsChangeRequestsComponent } from './eps-change-requests.component';
 
+type RegistryColumnKey = 'assetTag' | 'name' | 'category' | 'status' | 'location';
+
 @Component({
   selector: 'mro-eps-page',
   standalone: true,
@@ -44,33 +46,86 @@ import { EpsChangeRequestsComponent } from './eps-change-requests.component';
             </form>
 
             <div class="table-container">
+              <div class="table-toolbar">
+                <input
+                  type="text"
+                  [value]="searchQuery"
+                  (input)="onSearchInput($any($event.target).value)"
+                  placeholder="Smart search: asset tag, serial, manufacturer, location"
+                />
+                <select [value]="statusFilter" (change)="setStatusFilter($any($event.target).value)">
+                  <option value="ALL">All statuses</option>
+                  <option *ngFor="let s of availableStatuses" [value]="s">{{ s }}</option>
+                </select>
+                <select [value]="categoryFilter" (change)="setCategoryFilter($any($event.target).value)">
+                  <option value="ALL">All categories</option>
+                  <option *ngFor="let c of availableCategories" [value]="c">{{ c }}</option>
+                </select>
+                <button class="btn btn-secondary btn-sm" (click)="toggleColumnPanel()">
+                  {{ showColumnPanel ? 'Hide Columns' : 'Columns' }}
+                </button>
+                <button class="btn btn-secondary btn-sm" (click)="saveCurrentFilter()">
+                  Save Filter
+                </button>
+              </div>
+
+              <div class="column-panel" *ngIf="showColumnPanel">
+                <label *ngFor="let col of columns">
+                  <input
+                    type="checkbox"
+                    [checked]="col.visible"
+                    (change)="setColumnVisibility(col.key, $any($event.target).checked)"
+                  />
+                  {{ col.label }}
+                </label>
+              </div>
+
+              <div class="saved-filters" *ngIf="savedFilters.length > 0">
+                <button class="saved-filter-chip" *ngFor="let f of savedFilters; let idx = index" (click)="applySavedFilter(f)">
+                  {{ f.name }}
+                  <span class="remove-chip" (click)="removeSavedFilter(idx); $event.stopPropagation()">×</span>
+                </button>
+              </div>
+
               <table class="table">
                 <thead>
                   <tr>
-                    <th>Asset Tag</th>
-                    <th>Name</th>
-                    <th>Category</th>
-                    <th>Status</th>
+                    <th *ngIf="isColumnVisible('assetTag')" (click)="sortBy('assetTag')" class="sortable">
+                      Asset Tag {{ sortIndicator('assetTag') }}
+                    </th>
+                    <th *ngIf="isColumnVisible('name')" (click)="sortBy('name')" class="sortable">
+                      Name {{ sortIndicator('name') }}
+                    </th>
+                    <th *ngIf="isColumnVisible('category')" (click)="sortBy('category')" class="sortable">
+                      Category {{ sortIndicator('category') }}
+                    </th>
+                    <th *ngIf="isColumnVisible('status')" (click)="sortBy('status')" class="sortable">
+                      Status {{ sortIndicator('status') }}
+                    </th>
+                    <th *ngIf="isColumnVisible('location')" (click)="sortBy('location')" class="sortable">
+                      Location {{ sortIndicator('location') }}
+                    </th>
                     <th>Action</th>
                   </tr>
                 </thead>
                 <tbody>
-                  <tr *ngFor="let item of equipment" 
+                  <tr *ngFor="let item of filteredEquipment" 
                       [class.selected]="selectedEquipment?.id === item.id"
                       (click)="selectEquipment(item)"
                       class="clickable-row">
-                    <td><strong>{{ item.assetTag }}</strong></td>
-                    <td>{{ item.name }}</td>
-                    <td>{{ item.category }}</td>
-                    <td><span class="status-tag active">{{ item.status }}</span></td>
+                    <td *ngIf="isColumnVisible('assetTag')"><strong>{{ item.assetTag }}</strong></td>
+                    <td *ngIf="isColumnVisible('name')">{{ item.name }}</td>
+                    <td *ngIf="isColumnVisible('category')">{{ item.category }}</td>
+                    <td *ngIf="isColumnVisible('status')"><span class="status-tag active">{{ item.status }}</span></td>
+                    <td *ngIf="isColumnVisible('location')">{{ item.location || '-' }}</td>
                     <td>
                       <button (click)="selectEquipment(item); $event.stopPropagation()" class="btn btn-secondary btn-sm">
                         View Documents
                       </button>
                     </td>
                   </tr>
-                  <tr *ngIf="equipment.length === 0">
-                    <td colspan="5" class="no-data">No equipment registered yet.</td>
+                  <tr *ngIf="filteredEquipment.length === 0">
+                    <td [attr.colspan]="visibleColumnCount + 1" class="no-data">No equipment matches current filters.</td>
                   </tr>
                 </tbody>
               </table>
@@ -200,6 +255,55 @@ import { EpsChangeRequestsComponent } from './eps-change-requests.component';
       border: 1px solid #e2e8f0;
       overflow: hidden;
     }
+    .table-toolbar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      padding: 12px 16px 0 16px;
+      align-items: center;
+    }
+    .table-toolbar input,
+    .table-toolbar select {
+      min-width: 180px;
+      padding: 8px 10px;
+      border-radius: 6px;
+      border: 1px solid #cbd5e1;
+      font-size: 0.85rem;
+    }
+    .column-panel {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      padding: 8px 16px 12px 16px;
+      font-size: 0.85rem;
+      color: #475569;
+    }
+    .column-panel label {
+      display: flex;
+      gap: 6px;
+      align-items: center;
+      user-select: none;
+    }
+    .saved-filters {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      padding: 0 16px 12px 16px;
+    }
+    .saved-filter-chip {
+      border: 1px solid #cbd5e1;
+      background: #f8fafc;
+      color: #334155;
+      border-radius: 999px;
+      font-size: 0.8rem;
+      padding: 4px 10px;
+      cursor: pointer;
+    }
+    .remove-chip {
+      margin-left: 8px;
+      font-weight: 700;
+      color: #64748b;
+    }
     .table {
       width: 100%;
       border-collapse: collapse;
@@ -214,6 +318,10 @@ import { EpsChangeRequestsComponent } from './eps-change-requests.component';
       background: #f8fafc;
       color: #64748b;
       font-weight: 600;
+    }
+    .table th.sortable {
+      cursor: pointer;
+      user-select: none;
     }
     .clickable-row {
       cursor: pointer;
@@ -253,6 +361,32 @@ import { EpsChangeRequestsComponent } from './eps-change-requests.component';
   `]
 })
 export class EpsPageComponent implements OnInit {
+  private readonly filtersStorageKey = 'eps_registry_saved_filters_v1';
+
+  columns: { key: RegistryColumnKey; label: string; visible: boolean }[] = [
+    { key: 'assetTag', label: 'Asset Tag', visible: true },
+    { key: 'name', label: 'Name', visible: true },
+    { key: 'category', label: 'Category', visible: true },
+    { key: 'status', label: 'Status', visible: true },
+    { key: 'location', label: 'Location', visible: true }
+  ];
+
+  availableStatuses: string[] = [];
+  availableCategories: string[] = [];
+  filteredEquipment: Equipment[] = [];
+  searchQuery = '';
+  statusFilter = 'ALL';
+  categoryFilter = 'ALL';
+  sortField: RegistryColumnKey = 'assetTag';
+  sortDirection: 'asc' | 'desc' = 'asc';
+  showColumnPanel = false;
+  savedFilters: {
+    name: string;
+    searchQuery: string;
+    statusFilter: string;
+    categoryFilter: string;
+  }[] = [];
+
   activeTab: 'registry' | 'requests' = 'registry';
   equipment: Equipment[] = [];
   selectedEquipment?: Equipment;
@@ -272,6 +406,7 @@ export class EpsPageComponent implements OnInit {
   ) {}
 
   ngOnInit(): void {
+    this.loadSavedFilters();
     this.load();
   }
 
@@ -281,6 +416,9 @@ export class EpsPageComponent implements OnInit {
     this.epsService.getEquipment().subscribe({
       next: (res) => {
         this.equipment = res.data;
+        this.availableStatuses = Array.from(new Set(this.equipment.map(e => e.status))).sort();
+        this.availableCategories = Array.from(new Set(this.equipment.map(e => e.category))).sort();
+        this.applyFiltersAndSort();
         this.loading = false;
         // Keep selection active if it still exists
         if (this.selectedEquipment) {
@@ -297,6 +435,136 @@ export class EpsPageComponent implements OnInit {
 
   selectEquipment(item: Equipment): void {
     this.selectedEquipment = item;
+  }
+
+  get visibleColumnCount(): number {
+    return this.columns.filter(c => c.visible).length;
+  }
+
+  isColumnVisible(key: RegistryColumnKey): boolean {
+    return this.columns.find(c => c.key === key)?.visible ?? false;
+  }
+
+  setColumnVisibility(key: RegistryColumnKey, visible: boolean): void {
+    const col = this.columns.find(c => c.key === key);
+    if (!col) return;
+    col.visible = visible;
+    if (!this.columns.some(c => c.visible)) {
+      col.visible = true;
+    }
+  }
+
+  toggleColumnPanel(): void {
+    this.showColumnPanel = !this.showColumnPanel;
+  }
+
+  sortBy(field: RegistryColumnKey): void {
+    if (this.sortField === field) {
+      this.sortDirection = this.sortDirection === 'asc' ? 'desc' : 'asc';
+    } else {
+      this.sortField = field;
+      this.sortDirection = 'asc';
+    }
+    this.applyFiltersAndSort();
+  }
+
+  sortIndicator(field: RegistryColumnKey): string {
+    if (this.sortField !== field) return '';
+    return this.sortDirection === 'asc' ? '↑' : '↓';
+  }
+
+  onSearchInput(value: string): void {
+    this.searchQuery = value;
+    this.applyFiltersAndSort();
+  }
+
+  setStatusFilter(value: string): void {
+    this.statusFilter = value;
+    this.applyFiltersAndSort();
+  }
+
+  setCategoryFilter(value: string): void {
+    this.categoryFilter = value;
+    this.applyFiltersAndSort();
+  }
+
+  saveCurrentFilter(): void {
+    const name = `Filter ${this.savedFilters.length + 1}`;
+    this.savedFilters.push({
+      name,
+      searchQuery: this.searchQuery,
+      statusFilter: this.statusFilter,
+      categoryFilter: this.categoryFilter
+    });
+    localStorage.setItem(this.filtersStorageKey, JSON.stringify(this.savedFilters));
+  }
+
+  applySavedFilter(filter: { searchQuery: string; statusFilter: string; categoryFilter: string }): void {
+    this.searchQuery = filter.searchQuery;
+    this.statusFilter = filter.statusFilter;
+    this.categoryFilter = filter.categoryFilter;
+    this.applyFiltersAndSort();
+  }
+
+  removeSavedFilter(index: number): void {
+    this.savedFilters.splice(index, 1);
+    localStorage.setItem(this.filtersStorageKey, JSON.stringify(this.savedFilters));
+  }
+
+  private loadSavedFilters(): void {
+    const raw = localStorage.getItem(this.filtersStorageKey);
+    if (!raw) return;
+    try {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed)) {
+        this.savedFilters = parsed;
+      }
+    } catch {
+      this.savedFilters = [];
+    }
+  }
+
+  private applyFiltersAndSort(): void {
+    const query = this.searchQuery.trim().toLowerCase();
+    this.filteredEquipment = this.equipment
+      .filter((item) => {
+        if (this.statusFilter !== 'ALL' && item.status !== this.statusFilter) return false;
+        if (this.categoryFilter !== 'ALL' && item.category !== this.categoryFilter) return false;
+        if (!query) return true;
+        const haystack = [
+          item.assetTag,
+          item.name,
+          item.category,
+          item.status,
+          item.serialNumber ?? '',
+          item.manufacturer ?? '',
+          item.location ?? ''
+        ].join(' ').toLowerCase();
+        return haystack.includes(query);
+      })
+      .sort((a, b) => {
+        const left = String(this.readSortValue(a, this.sortField)).toLowerCase();
+        const right = String(this.readSortValue(b, this.sortField)).toLowerCase();
+        const result = left.localeCompare(right);
+        return this.sortDirection === 'asc' ? result : -result;
+      });
+  }
+
+  private readSortValue(item: Equipment, field: RegistryColumnKey): string {
+    switch (field) {
+      case 'assetTag':
+        return item.assetTag;
+      case 'name':
+        return item.name;
+      case 'category':
+        return item.category;
+      case 'status':
+        return item.status;
+      case 'location':
+        return item.location ?? '';
+      default:
+        return '';
+    }
   }
 
   create(): void {
