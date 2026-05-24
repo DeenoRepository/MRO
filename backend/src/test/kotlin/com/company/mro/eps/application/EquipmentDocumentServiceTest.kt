@@ -5,6 +5,7 @@ import com.company.mro.eps.persistence.EquipmentDocumentEntity
 import com.company.mro.eps.persistence.EquipmentDocumentRepository
 import com.company.mro.eps.persistence.EquipmentRepository
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.extension.ExtendWith
@@ -14,6 +15,8 @@ import org.mockito.junit.jupiter.MockitoExtension
 import java.nio.file.Files
 import java.time.Instant
 import java.util.UUID
+import org.springframework.http.HttpStatus
+import org.springframework.web.server.ResponseStatusException
 import org.mockito.Mockito.`when` as whenever
 
 @ExtendWith(MockitoExtension::class)
@@ -71,9 +74,18 @@ class EquipmentDocumentServiceTest {
             equipmentId = equipmentId,
             documentType = "MANUAL",
             fileName = "pump.pdf",
-            fileBytes = "v3".toByteArray()
+            fileBytes = "v3".toByteArray(),
+            extractedText = "pump manual content"
         )
 
         assertEquals(3, response.version)
+    }
+
+    @Test
+    fun `search rejects too short query`() {
+        val ex = assertThrows(ResponseStatusException::class.java) {
+            service.searchDocuments("a", null)
+        }
+        assertEquals(HttpStatus.BAD_REQUEST, ex.statusCode)
     }
 }

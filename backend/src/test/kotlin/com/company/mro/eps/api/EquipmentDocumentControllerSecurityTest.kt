@@ -63,11 +63,12 @@ class EquipmentDocumentControllerSecurityTest {
             filePath = "/path/to/test.txt",
             version = 1,
             checksumSha256 = "dummy-checksum",
+            extractedTextSnippet = null,
             uploadedAt = Instant.now(),
             uploadedBy = null
         )
 
-        `when`(documentService.uploadDocument(eqId, "MANUAL", "test.txt", "test content".toByteArray())).thenReturn(response)
+        `when`(documentService.uploadDocument(eqId, "MANUAL", "test.txt", "test content".toByteArray(), null)).thenReturn(response)
 
         mockMvc.perform(
             multipart("/api/v1/eps/equipment/$eqId/documents")

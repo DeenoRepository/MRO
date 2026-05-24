@@ -47,6 +47,15 @@ class EquipmentDocumentController(
         return successResponse(documentService.getDocumentVersions(id, documentType, fileName))
     }
 
+    @GetMapping("/documents/search")
+    @Operation(summary = "Search document metadata and extracted text")
+    @PreAuthorize("hasAuthority('EPS_READ')")
+    fun searchDocuments(
+        @RequestParam("query") query: String,
+        @RequestParam("equipmentId", required = false) equipmentId: UUID?
+    ): ApiSuccessResponse<List<EquipmentDocumentResponse>> =
+        successResponse(documentService.searchDocuments(query, equipmentId))
+
     @PostMapping("/{id}/documents")
     @ResponseStatus(HttpStatus.CREATED)
     @Operation(summary = "Upload a document for an equipment")
@@ -54,7 +63,8 @@ class EquipmentDocumentController(
     fun uploadDocument(
         @PathVariable id: UUID,
         @RequestParam("documentType") documentType: String,
-        @RequestParam("file") file: MultipartFile
+        @RequestParam("file") file: MultipartFile,
+        @RequestParam("extractedText", required = false) extractedText: String?
     ): ApiSuccessResponse<EquipmentDocumentResponse> {
         if (file.isEmpty) {
             throw org.springframework.web.server.ResponseStatusException(HttpStatus.BAD_REQUEST, "File is empty")
@@ -63,7 +73,8 @@ class EquipmentDocumentController(
             equipmentId = id,
             documentType = documentType,
             fileName = file.originalFilename ?: "uploaded_file",
-            fileBytes = file.bytes
+            fileBytes = file.bytes,
+            extractedText = extractedText
         )
         return successResponse(response)
     }

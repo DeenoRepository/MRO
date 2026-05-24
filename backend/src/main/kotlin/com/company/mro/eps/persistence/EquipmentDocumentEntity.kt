@@ -30,6 +30,8 @@ class EquipmentDocumentEntity(
 
     @Column(name = "checksum_sha256", nullable = false, length = 64)
     var checksumSha256: String,
+    @Column(name = "extracted_text")
+    var extractedText: String? = null,
 
     @Column(name = "uploaded_at", nullable = false)
     var uploadedAt: Instant = Instant.now(),

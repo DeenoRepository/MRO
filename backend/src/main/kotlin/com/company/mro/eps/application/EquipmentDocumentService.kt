@@ -64,7 +64,8 @@ class EquipmentDocumentService(
         equipmentId: UUID,
         documentType: String,
         fileName: String,
-        fileBytes: ByteArray
+        fileBytes: ByteArray,
+        extractedText: String? = null
     ): EquipmentDocumentResponse {
         if (!equipmentRepository.existsById(equipmentId)) {
             throw ResponseStatusException(HttpStatus.NOT_FOUND, "Equipment not found")
@@ -103,6 +104,7 @@ class EquipmentDocumentService(
             filePath = targetPath.toAbsolutePath().toString(),
             version = nextVersion,
             checksumSha256 = checksum,
+            extractedText = extractedText?.trim(),
             uploadedAt = Instant.now(),
             uploadedBy = null // No db user profile loaded
         )
@@ -124,6 +126,20 @@ class EquipmentDocumentService(
         return file
     }
 
+    @Transactional(readOnly = true)
+    fun searchDocuments(query: String, equipmentId: UUID?): List<EquipmentDocumentResponse> {
+        val normalizedQuery = query.trim()
+        if (normalizedQuery.length < 2) {
+            throw ResponseStatusException(HttpStatus.BAD_REQUEST, "query must be at least 2 characters")
+        }
+        equipmentId?.let {
+            if (!equipmentRepository.existsById(it)) {
+                throw ResponseStatusException(HttpStatus.NOT_FOUND, "Equipment not found")
+            }
+        }
+        return documentRepository.searchDocuments(normalizedQuery, equipmentId).map { it.toResponse() }
+    }
+
     private fun sha256(bytes: ByteArray): String {
         val digest = MessageDigest.getInstance("SHA-256")
         val hash = digest.digest(bytes)
@@ -138,6 +154,7 @@ class EquipmentDocumentService(
         filePath = filePath,
         version = version,
         checksumSha256 = checksumSha256,
+        extractedTextSnippet = extractedText?.take(500),
         uploadedAt = uploadedAt,
         uploadedBy = uploadedBy
     )

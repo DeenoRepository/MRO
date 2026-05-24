@@ -11,6 +11,7 @@ data class EquipmentDocumentResponse(
     val filePath: String,
     val version: Int,
     val checksumSha256: String,
+    val extractedTextSnippet: String?,
     val uploadedAt: Instant,
     val uploadedBy: UUID?
 )
