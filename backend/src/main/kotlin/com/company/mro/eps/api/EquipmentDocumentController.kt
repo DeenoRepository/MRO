@@ -36,6 +36,17 @@ class EquipmentDocumentController(
         return successResponse(documentService.getDocumentsByEquipment(id))
     }
 
+    @GetMapping("/{id}/documents/versions")
+    @Operation(summary = "List document versions for an equipment document key")
+    @PreAuthorize("hasAuthority('EPS_READ')")
+    fun getDocumentVersions(
+        @PathVariable id: UUID,
+        @RequestParam("documentType") documentType: String,
+        @RequestParam("fileName") fileName: String
+    ): ApiSuccessResponse<List<EquipmentDocumentResponse>> {
+        return successResponse(documentService.getDocumentVersions(id, documentType, fileName))
+    }
+
     @PostMapping("/{id}/documents")
     @ResponseStatus(HttpStatus.CREATED)
     @Operation(summary = "Upload a document for an equipment")
@@ -65,7 +76,7 @@ class EquipmentDocumentController(
         val resource = FileSystemResource(file)
 
         val headers = HttpHeaders().apply {
-            add(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"\${file.name}\"")
+            add(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"${file.name}\"")
             contentType = MediaType.APPLICATION_OCTET_STREAM
         }
 

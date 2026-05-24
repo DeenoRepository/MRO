@@ -5,4 +5,9 @@ import java.util.UUID
 
 interface EquipmentDocumentRepository : JpaRepository<EquipmentDocumentEntity, UUID> {
     fun findByEquipmentId(equipmentId: UUID): List<EquipmentDocumentEntity>
+    fun findByEquipmentIdAndDocumentTypeIgnoreCaseAndFileNameOrderByVersionDesc(
+        equipmentId: UUID,
+        documentType: String,
+        fileName: String
+    ): List<EquipmentDocumentEntity>
 }

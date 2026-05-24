@@ -40,6 +40,25 @@ class EquipmentDocumentService(
         return documentRepository.findByEquipmentId(equipmentId).map { it.toResponse() }
     }
 
+    @Transactional(readOnly = true)
+    fun getDocumentVersions(equipmentId: UUID, documentType: String, fileName: String): List<EquipmentDocumentResponse> {
+        if (!equipmentRepository.existsById(equipmentId)) {
+            throw ResponseStatusException(HttpStatus.NOT_FOUND, "Equipment not found")
+        }
+        val normalizedType = documentType.trim()
+        val normalizedName = fileName.trim()
+        if (normalizedType.isEmpty() || normalizedName.isEmpty()) {
+            throw ResponseStatusException(HttpStatus.BAD_REQUEST, "documentType and fileName are required")
+        }
+        return documentRepository
+            .findByEquipmentIdAndDocumentTypeIgnoreCaseAndFileNameOrderByVersionDesc(
+                equipmentId = equipmentId,
+                documentType = normalizedType,
+                fileName = normalizedName
+            )
+            .map { it.toResponse() }
+    }
+
     @Transactional
     fun uploadDocument(
         equipmentId: UUID,
@@ -51,9 +70,15 @@ class EquipmentDocumentService(
             throw ResponseStatusException(HttpStatus.NOT_FOUND, "Equipment not found")
         }
 
+        val normalizedType = documentType.trim()
+        val normalizedName = fileName.trim()
+        if (normalizedType.isEmpty() || normalizedName.isEmpty()) {
+            throw ResponseStatusException(HttpStatus.BAD_REQUEST, "documentType and fileName are required")
+        }
+
         val checksum = sha256(fileBytes)
         val fileId = UUID.randomUUID()
-        val fileExtension = fileName.substringAfterLast('.', "")
+        val fileExtension = normalizedName.substringAfterLast('.', "")
         val targetFileName = if (fileExtension.isNotEmpty()) "$fileId.$fileExtension" else fileId.toString()
         val targetPath = Paths.get(storageDir, targetFileName)
 
@@ -63,15 +88,18 @@ class EquipmentDocumentService(
             throw ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Failed to save file locally", it)
         }
 
-        // Determine next version if file with the same name exists for this equipment
-        val existingDocs = documentRepository.findByEquipmentId(equipmentId)
-        val nextVersion = (existingDocs.filter { it.fileName == fileName }.maxOfOrNull { it.version } ?: 0) + 1
+        val existingVersions = documentRepository.findByEquipmentIdAndDocumentTypeIgnoreCaseAndFileNameOrderByVersionDesc(
+            equipmentId = equipmentId,
+            documentType = normalizedType,
+            fileName = normalizedName
+        )
+        val nextVersion = (existingVersions.firstOrNull()?.version ?: 0) + 1
 
         val entity = EquipmentDocumentEntity(
             id = fileId,
             equipmentId = equipmentId,
-            documentType = documentType.trim(),
-            fileName = fileName.trim(),
+            documentType = normalizedType,
+            fileName = normalizedName,
             filePath = targetPath.toAbsolutePath().toString(),
             version = nextVersion,
             checksumSha256 = checksum,
