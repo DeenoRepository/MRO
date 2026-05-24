@@ -58,6 +58,14 @@ interface AnalyticsSummary {
                 <input type="text" formControlName="name" placeholder="Asset Name" />
                 <input type="text" formControlName="category" placeholder="Category" />
               </div>
+              <div class="duplicate-hints" *ngIf="duplicateCandidates.length > 0">
+                <p>Potential duplicates found:</p>
+                <ul>
+                  <li *ngFor="let c of duplicateCandidates">
+                    <strong>{{ c.assetTag }}</strong> - {{ c.name }} ({{ c.category }})
+                  </li>
+                </ul>
+              </div>
               <button type="submit" [disabled]="form.invalid || submitting" class="btn btn-primary">
                 {{ submitting ? 'Saving...' : 'Register' }}
               </button>
@@ -418,6 +426,23 @@ interface AnalyticsSummary {
     .btn-secondary:hover { background: #e2e8f0; }
     .btn-sm { padding: 6px 10px; font-size: 0.8rem; }
     .error { color: #dc2626; margin-top: 8px; font-size: 0.9rem; }
+    .duplicate-hints {
+      border: 1px solid #fcd34d;
+      background: #fffbeb;
+      border-radius: 8px;
+      padding: 10px;
+      margin-bottom: 10px;
+      font-size: 0.82rem;
+      color: #78350f;
+    }
+    .duplicate-hints p {
+      margin: 0 0 6px 0;
+      font-weight: 700;
+    }
+    .duplicate-hints ul {
+      margin: 0;
+      padding-left: 18px;
+    }
     .table-container {
       background: #ffffff;
       border-radius: 12px;
@@ -838,6 +863,7 @@ export class EpsPageComponent implements OnInit {
   uploadMediaAnnotation = '';
   uploadMediaFile?: File;
   relatedEquipment: Equipment[] = [];
+  duplicateCandidates: Equipment[] = [];
   analyticsSummary: AnalyticsSummary = {
     totalAssets: 0,
     activeAssets: 0,
@@ -864,6 +890,7 @@ export class EpsPageComponent implements OnInit {
 
   ngOnInit(): void {
     this.loadSavedFilters();
+    this.form.valueChanges.subscribe(() => this.refreshDuplicateCandidates());
     this.load();
   }
 
@@ -878,6 +905,7 @@ export class EpsPageComponent implements OnInit {
         this.applyFiltersAndSort();
         this.rebuildTimeline();
         this.rebuildAnalyticsSummary();
+        this.refreshDuplicateCandidates();
         this.loading = false;
         // Keep selection active if it still exists
         if (this.selectedEquipment) {
@@ -1194,6 +1222,24 @@ export class EpsPageComponent implements OnInit {
     };
   }
 
+  private refreshDuplicateCandidates(): void {
+    const assetTag = (this.form.controls.assetTag.value ?? '').trim().toLowerCase();
+    const name = (this.form.controls.name.value ?? '').trim().toLowerCase();
+    const category = (this.form.controls.category.value ?? '').trim().toLowerCase();
+    if (!assetTag && !name) {
+      this.duplicateCandidates = [];
+      return;
+    }
+    this.duplicateCandidates = this.equipment
+      .filter((item) => {
+        const sameAssetTag = assetTag.length > 0 && item.assetTag.toLowerCase() === assetTag;
+        const similarName = name.length > 2 && item.name.toLowerCase().includes(name);
+        const sameCategory = category.length > 0 && item.category.toLowerCase() === category;
+        return sameAssetTag || (similarName && sameCategory) || similarName;
+      })
+      .slice(0, 5);
+  }
+
   formatMetric(metricType: TelemetryMetricType): string {
     switch (metricType) {
       case 'RUNTIME_HOURS':
@@ -1270,6 +1316,7 @@ export class EpsPageComponent implements OnInit {
     this.epsService.createEquipment(payload).subscribe({
       next: () => {
         this.form.reset();
+        this.duplicateCandidates = [];
         this.submitting = false;
         this.load();
       },
