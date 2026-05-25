@@ -1106,6 +1106,10 @@ interface EquipmentDraft {
     .alert-success { background: var(--success-bg); color: var(--success-color); border: 1px solid hsla(142, 70%, 45%, 0.1); }
     .alert-error { background: var(--danger-bg); color: var(--danger-color); border: 1px solid hsla(0, 84%, 60%, 0.1); }
 
+    .tab-content {
+      min-height: 650px;
+    }
+
     /* Layout Workspace Grid */
     .registry-grid {
       display: grid;
@@ -1838,6 +1842,7 @@ interface EquipmentDraft {
       display: flex;
       flex-direction: column;
       gap: 16px;
+      min-height: 480px;
       animation: workspaceSlideIn 0.3s ease;
     }
 
