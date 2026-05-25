@@ -191,6 +191,10 @@ interface EquipmentDraft {
                 />
               </div>
               <div class="toolbar-actions">
+                <button class="btn btn-secondary" (click)="showColumnPanel = !showColumnPanel">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="4" y1="21" x2="4" y2="14"></line><line x1="4" y1="10" x2="4" y2="3"></line><line x1="12" y1="21" x2="12" y2="12"></line><line x1="12" y1="8" x2="12" y2="3"></line><line x1="20" y1="21" x2="20" y2="16"></line><line x1="20" y1="12" x2="20" y2="3"></line><line x1="1" y1="14" x2="7" y2="14"></line><line x1="9" y1="8" x2="15" y2="8"></line><line x1="17" y1="16" x2="23" y2="16"></line></svg>
+                  Filters
+                </button>
                 <button class="btn btn-secondary" (click)="showOpsInsights = !showOpsInsights">
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path><circle cx="12" cy="13" r="4"></circle></svg>
                   Scan Code
@@ -219,6 +223,50 @@ interface EquipmentDraft {
                 Governance
               </button>
             </div>
+
+            <!-- Collapsible Filters Sheet -->
+            <section class="collapsible-filter-sheet card-premium" *ngIf="showColumnPanel && registryViewMode === 'BROWSE'">
+              <div class="filter-sheet-header">
+                <h4>Advanced Search Options</h4>
+                <button class="close-sheet-btn" (click)="showColumnPanel = false">×</button>
+              </div>
+              <div class="filter-sheet-grid">
+                <div class="filter-column">
+                  <span class="column-group-label">General Selectors</span>
+                  <div class="selector-element-row">
+                    <select [value]="statusFilter" (change)="setStatusFilter($any($event.target).value)">
+                      <option value="ALL">All Statuses</option>
+                      <option *ngFor="let s of availableStatuses" [value]="s">{{ s }}</option>
+                    </select>
+                    <select [value]="categoryFilter" (change)="setCategoryFilter($any($event.target).value)">
+                      <option value="ALL">All Categories</option>
+                      <option *ngFor="let c of availableCategories" [value]="c">{{ c }}</option>
+                    </select>
+                  </div>
+                </div>
+                <div class="filter-column">
+                  <span class="column-group-label">Saved Scopes</span>
+                  <div class="saved-filters-builder">
+                    <input type="text" [value]="newFilterName" (input)="newFilterName = $any($event.target).value" placeholder="Filter name..." />
+                    <select [value]="newFilterScope" (change)="newFilterScope = $any($event.target).value">
+                      <option value="PERSONAL">Personal</option>
+                      <option value="TEAM">Team</option>
+                      <option value="GLOBAL">Global</option>
+                    </select>
+                    <button class="btn btn-secondary btn-sm" (click)="saveCurrentFilter()">Save</button>
+                  </div>
+                </div>
+                <div class="filter-column">
+                  <span class="column-group-label">Customize Columns</span>
+                  <div class="column-checkboxes">
+                    <label *ngFor="let col of columns; let i = index" class="column-checkbox-item">
+                      <input type="checkbox" [checked]="col.visible" (change)="setColumnVisibility(col.key, $any($event.target).checked)" />
+                      {{ col.label }}
+                    </label>
+                  </div>
+                </div>
+              </div>
+            </section>
 
             <!-- Operational Scanner Area -->
             <section class="ops-scan-panel card-premium" *ngIf="registryViewMode === 'BROWSE' && purposeTab === 'OPERATIONS'">
@@ -341,45 +389,7 @@ interface EquipmentDraft {
 
             <!-- Table & Filters section -->
             <section class="table-container card-premium" *ngIf="registryViewMode === 'BROWSE' && purposeTab === 'REGISTRY'">
-              <div class="table-filters-bar">
-                <div class="filter-controls-group">
-                  <select [value]="statusFilter" (change)="setStatusFilter($any($event.target).value)">
-                    <option value="ALL">All Statuses</option>
-                    <option *ngFor="let s of availableStatuses" [value]="s">{{ s }}</option>
-                  </select>
-                  <select [value]="categoryFilter" (change)="setCategoryFilter($any($event.target).value)">
-                    <option value="ALL">All Categories</option>
-                    <option *ngFor="let c of availableCategories" [value]="c">{{ c }}</option>
-                  </select>
-                  <button class="btn btn-secondary btn-sm" (click)="toggleColumnPanel()">
-                    Columns
-                  </button>
-                </div>
-                <div class="saved-filters-builder">
-                  <input type="text" [value]="newFilterName" (input)="newFilterName = $any($event.target).value" placeholder="Filter name" />
-                  <select [value]="newFilterScope" (change)="newFilterScope = $any($event.target).value">
-                    <option value="PERSONAL">Personal</option>
-                    <option value="TEAM">Team</option>
-                    <option value="GLOBAL">Global</option>
-                  </select>
-                  <button class="btn btn-secondary btn-sm" (click)="saveCurrentFilter()">Save Filter</button>
-                </div>
-              </div>
-
-              <!-- Column config panel -->
-              <div class="column-panel" *ngIf="showColumnPanel">
-                <div class="column-config" *ngFor="let col of columns; let i = index">
-                  <label>
-                    <input type="checkbox" [checked]="col.visible" (change)="setColumnVisibility(col.key, $any($event.target).checked)" />
-                    {{ col.label }}
-                  </label>
-                  <div class="column-order">
-                    <button class="btn btn-secondary btn-sm" (click)="moveColumn(i, -1)" [disabled]="i === 0">Up</button>
-                    <button class="btn btn-secondary btn-sm" (click)="moveColumn(i, 1)" [disabled]="i === columns.length - 1">Down</button>
-                  </div>
-                </div>
-              </div>
-
+              
               <!-- Saved filter tags -->
               <div class="saved-filters" *ngIf="savedFilters.length > 0">
                 <button class="saved-filter-chip" *ngFor="let f of savedFilters; let idx = index" (click)="applySavedFilter(f)">
@@ -698,20 +708,22 @@ interface EquipmentDraft {
               </header>
               <div class="telemetry-empty" *ngIf="telemetryLoading">Loading sensor grid...</div>
               <div class="telemetry-empty" *ngIf="!telemetryLoading && telemetryPoints.length === 0">No telemetry records found.</div>
-              <div class="table-wrapper" *ngIf="!telemetryLoading && telemetryPoints.length > 0">
-                <table class="table">
-                  <thead>
-                    <tr><th>Metric Type</th><th>Current Value</th><th>Recorded At</th><th>Source Sensor</th></tr>
-                  </thead>
-                  <tbody>
-                    <tr *ngFor="let point of telemetryPoints">
-                      <td><strong>{{ formatMetric(point.metricType) }}</strong></td>
-                      <td><span class="metric-badge">{{ point.metricValue }} {{ point.unit || '' }}</span></td>
-                      <td>{{ point.recordedAt | date: 'short' }}</td>
-                      <td>{{ point.source || '-' }}</td>
-                    </tr>
-                  </tbody>
-                </table>
+              
+              <!-- Telemetry visual grid cards with progress status -->
+              <div class="sensor-grid-layout" *ngIf="!telemetryLoading && telemetryPoints.length > 0">
+                <article class="sensor-card" *ngFor="let point of telemetryPoints">
+                  <div class="sensor-card-head">
+                    <span class="sensor-type-badge">{{ formatMetric(point.metricType) }}</span>
+                    <span class="sensor-origin">{{ point.source || 'Generic' }}</span>
+                  </div>
+                  <div class="sensor-value-group">
+                    <strong class="sensor-value">{{ point.metricValue }} {{ point.unit || '' }}</strong>
+                    <div class="sensor-health-bar">
+                      <div class="health-fill" [style.width.%]="point.metricValue > 100 ? 100 : point.metricValue"></div>
+                    </div>
+                  </div>
+                  <span class="sensor-time">Recorded: {{ point.recordedAt | date: 'shortTime' }}</span>
+                </article>
               </div>
             </section>
 
@@ -745,20 +757,24 @@ interface EquipmentDraft {
               <p class="error" *ngIf="mediaError">{{ mediaError }}</p>
               <div class="telemetry-empty" *ngIf="mediaLoading">Retrieving media items...</div>
               <div class="telemetry-empty" *ngIf="!mediaLoading && filteredMediaItems.length === 0">No inspection media found.</div>
-              <ul class="media-list" *ngIf="!mediaLoading && filteredMediaItems.length > 0">
-                <li *ngFor="let item of filteredMediaItems">
-                  <div class="media-row-head">
-                    <strong>{{ item.fileName }}</strong>
-                    <span class="media-type">{{ item.mediaType }}</span>
+              
+              <!-- Refined Gallery Grid for media items -->
+              <div class="gallery-grid" *ngIf="!mediaLoading && filteredMediaItems.length > 0">
+                <article class="gallery-item" *ngFor="let item of filteredMediaItems">
+                  <div class="item-visual-fallback">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg>
+                    <span class="media-type-badge">{{ item.mediaType }}</span>
                   </div>
-                  <div class="media-row-meta">
-                    Uploaded: {{ item.uploadedAt | date: 'medium' }} <span *ngIf="item.annotation" class="meta-tag ml-2">{{ item.annotation }}</span>
+                  <div class="gallery-item-content">
+                    <strong class="item-filename">{{ item.fileName }}</strong>
+                    <p class="item-meta">Date: {{ item.uploadedAt | date: 'short' }}</p>
+                    <p class="item-annotation" *ngIf="item.annotation">{{ item.annotation }}</p>
+                    <a class="item-download-link" [href]="buildMediaDownloadUrl(item.id)" target="_blank" rel="noopener noreferrer">
+                      Download
+                    </a>
                   </div>
-                  <a class="media-download" [href]="buildMediaDownloadUrl(item.id)" target="_blank" rel="noopener noreferrer">
-                    Download attachment
-                  </a>
-                </li>
-              </ul>
+                </article>
+              </div>
             </section>
 
             <!-- TAB CONTENT: Relationships / History Topology -->
@@ -769,12 +785,18 @@ interface EquipmentDraft {
               </header>
               <div class="graph-center-node">{{ selectedEquipment?.assetTag }} — {{ selectedEquipment?.name }}</div>
               <div class="graph-empty" *ngIf="relatedEquipment.length === 0">No related topology items.</div>
-              <ul class="graph-list" *ngIf="relatedEquipment.length > 0">
-                <li *ngFor="let rel of relatedEquipment">
-                  <strong>{{ rel.assetTag }}</strong> — {{ rel.name }}
-                  <span class="graph-reason">{{ buildRelationReason(rel) }}</span>
-                </li>
-              </ul>
+              
+              <!-- Structured hierarchical topology connectors list -->
+              <div class="topology-connector-tree" *ngIf="relatedEquipment.length > 0">
+                <div class="topology-branch" *ngFor="let rel of relatedEquipment">
+                  <div class="branch-connector-line"></div>
+                  <div class="branch-card">
+                    <span class="branch-tag">{{ rel.assetTag }}</span>
+                    <strong class="branch-name">{{ rel.name }}</strong>
+                    <span class="branch-reason-text">{{ buildRelationReason(rel) }}</span>
+                  </div>
+                </div>
+              </div>
             </section>
 
             <!-- ROADMAP TAB PLACEHOLDER -->
@@ -1218,6 +1240,85 @@ interface EquipmentDraft {
     .purpose-tab-btn:disabled {
       opacity: 0.45;
       cursor: not-allowed;
+    }
+
+    /* Advanced Collapsible Filter Sheet */
+    .collapsible-filter-sheet {
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+      animation: filterSlideDown 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    @keyframes filterSlideDown {
+      from { opacity: 0; transform: translateY(-12px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .filter-sheet-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .filter-sheet-header h4 {
+      margin: 0;
+      font-size: 0.92rem;
+      font-weight: 800;
+    }
+
+    .close-sheet-btn {
+      border: none;
+      background: transparent;
+      font-size: 1.2rem;
+      color: var(--text-muted);
+      cursor: pointer;
+    }
+
+    .filter-sheet-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 16px;
+    }
+
+    .filter-column {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .column-group-label {
+      font-size: 0.72rem;
+      font-weight: 800;
+      text-transform: uppercase;
+      color: var(--text-muted);
+      letter-spacing: 0.03em;
+    }
+
+    .selector-element-row {
+      display: flex;
+      gap: 8px;
+    }
+
+    .selector-element-row select {
+      flex: 1;
+      font-size: 0.8rem;
+    }
+
+    .column-checkboxes {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px 12px;
+    }
+
+    .column-checkbox-item {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 0.78rem;
+      font-weight: 600;
+      color: var(--text-color);
+      cursor: pointer;
     }
 
     /* Operational & Scanner Panels */
@@ -1909,105 +2010,231 @@ interface EquipmentDraft {
       max-width: 180px;
     }
 
-    .media-list {
-      list-style: none;
-      padding: 0;
-      margin: 0;
-      display: flex;
-      flex-direction: column;
-      gap: 8px;
+    /* Sensor Grid Layout (Telemetry view) */
+    .sensor-grid-layout {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 16px;
+      margin-top: 12px;
     }
 
-    .media-list li {
+    .sensor-card {
+      background: hsl(220, 20%, 97%);
       border: 1px solid var(--border-color);
-      background: var(--bg-card);
-      border-radius: var(--border-radius-md);
-      padding: 12px 14px;
+      border-radius: var(--border-radius-lg);
+      padding: 16px;
       display: flex;
       flex-direction: column;
-      gap: 4px;
-      position: relative;
+      gap: 12px;
+      transition: var(--transition-smooth);
     }
 
-    .media-row-head {
+    .sensor-card:hover {
+      background: var(--bg-card);
+      border-color: hsla(220, 90%, 50%, 0.15);
+      transform: translateY(-1px);
+    }
+
+    .sensor-card-head {
       display: flex;
       justify-content: space-between;
       align-items: center;
     }
 
-    .media-row-head strong {
-      font-size: 0.86rem;
-      color: var(--text-color);
-    }
-
-    .media-type {
-      background: var(--info-bg);
-      color: var(--info-color);
-      font-size: 0.65rem;
-      font-weight: 700;
-      padding: 2px 6px;
-      border-radius: var(--border-radius-sm);
-    }
-
-    .media-row-meta {
-      font-size: 0.74rem;
+    .sensor-type-badge {
+      font-size: 0.72rem;
+      font-weight: 800;
+      text-transform: uppercase;
       color: var(--text-muted);
     }
 
-    .media-download {
-      font-size: 0.76rem;
-      font-weight: 700;
-      color: var(--primary-color);
-      text-decoration: none;
-      align-self: flex-start;
-      margin-top: 4px;
-    }
-
-    .media-download:hover {
-      text-decoration: underline;
-    }
-
-    /* Topology connections */
-    .graph-center-node {
-      background: hsla(220, 90%, 50%, 0.05);
-      border: 1px solid var(--primary-color);
-      color: var(--primary-color);
-      padding: 10px 14px;
-      border-radius: var(--border-radius-md);
-      font-weight: 700;
-      font-size: 0.88rem;
-      margin-top: 14px;
-      margin-bottom: 14px;
-      text-align: center;
-    }
-
-    .graph-empty {
-      font-style: italic;
+    .sensor-origin {
+      font-size: 0.7rem;
+      font-family: monospace;
       color: var(--text-muted);
-      font-size: 0.84rem;
     }
 
-    .graph-list {
-      list-style: none;
-      padding: 0;
-      margin: 0;
+    .sensor-value-group {
       display: flex;
       flex-direction: column;
       gap: 6px;
     }
 
-    .graph-list li {
+    .sensor-value {
+      font-size: 1.4rem;
+      font-weight: 800;
+      color: var(--text-color);
+    }
+
+    .sensor-health-bar {
+      height: 6px;
+      background: hsl(220, 20%, 90%);
+      border-radius: 99px;
+      overflow: hidden;
+    }
+
+    .health-fill {
+      height: 100%;
+      background: var(--primary-gradient);
+      border-radius: 99px;
+      transition: width 0.6s ease;
+    }
+
+    .sensor-time {
+      font-size: 0.68rem;
+      color: var(--text-muted);
+    }
+
+    /* Media Visual Gallery Grid */
+    .gallery-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 16px;
+      margin-top: 12px;
+    }
+
+    .gallery-item {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: var(--border-radius-lg);
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      box-shadow: var(--shadow-premium);
+      transition: var(--transition-smooth);
+    }
+
+    .gallery-item:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 10px 24px -6px rgba(15, 23, 42, 0.1);
+      border-color: hsla(220, 90%, 50%, 0.15);
+    }
+
+    .item-visual-fallback {
+      height: 100px;
+      background: hsl(220, 20%, 97%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--text-muted);
+      position: relative;
+    }
+
+    .media-type-badge {
+      position: absolute;
+      bottom: 8px;
+      right: 8px;
+      background: var(--info-bg);
+      color: var(--info-color);
+      font-size: 0.62rem;
+      font-weight: 800;
+      padding: 2px 6px;
+      border-radius: var(--border-radius-sm);
+    }
+
+    .gallery-item-content {
+      padding: 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .item-filename {
+      font-size: 0.8rem;
+      font-weight: 700;
+      color: var(--text-color);
+      word-break: break-all;
+    }
+
+    .item-meta {
+      font-size: 0.68rem;
+      color: var(--text-muted);
+    }
+
+    .item-annotation {
+      font-size: 0.72rem;
+      color: var(--text-color);
+      background: hsl(220, 20%, 96%);
+      padding: 4px 8px;
+      border-radius: var(--border-radius-sm);
+      margin-top: 4px;
+    }
+
+    .item-download-link {
+      font-size: 0.76rem;
+      font-weight: 700;
+      color: var(--primary-color);
+      text-decoration: none;
+      margin-top: 8px;
+      align-self: flex-start;
+    }
+
+    .item-download-link:hover {
+      text-decoration: underline;
+    }
+
+    /* Topology Connector Tree */
+    .topology-connector-tree {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      margin-top: 14px;
+      position: relative;
+      padding-left: 20px;
+    }
+
+    .topology-connector-tree::before {
+      content: '';
+      position: absolute;
+      left: 6px;
+      top: 0;
+      bottom: 24px;
+      width: 2px;
+      background: var(--border-color);
+    }
+
+    .topology-branch {
+      position: relative;
+      display: flex;
+      align-items: center;
+    }
+
+    .branch-connector-line {
+      position: absolute;
+      left: -14px;
+      top: 50%;
+      width: 14px;
+      height: 2px;
+      background: var(--border-color);
+    }
+
+    .branch-card {
       background: hsl(220, 20%, 97%);
       border: 1px solid var(--border-color);
       border-radius: var(--border-radius-md);
       padding: 8px 12px;
-      font-size: 0.8rem;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+      flex: 1;
     }
 
-    .graph-reason {
+    .branch-tag {
+      font-family: monospace;
+      font-size: 0.78rem;
+      font-weight: 700;
+      color: var(--primary-color);
+    }
+
+    .branch-name {
+      font-size: 0.8rem;
+      color: var(--text-color);
+    }
+
+    .branch-reason-text {
+      font-size: 0.72rem;
       color: var(--text-muted);
-      font-size: 0.74rem;
-      margin-left: 6px;
     }
 
     /* Complete edit panel */
