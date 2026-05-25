@@ -14,9 +14,14 @@ import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.extension.ExtendWith
+import org.mockito.ArgumentCaptor
 import org.mockito.InjectMocks
 import org.mockito.Mock
+import org.mockito.Mockito.verify
 import org.mockito.junit.jupiter.MockitoExtension
+import org.springframework.data.domain.PageImpl
+import org.springframework.data.domain.PageRequest
+import org.springframework.data.domain.Sort
 import org.springframework.http.HttpStatus
 import org.springframework.web.server.ResponseStatusException
 import java.time.LocalDate
@@ -281,6 +286,120 @@ class EquipmentServiceTest {
     fun `overview rejects non positive limit`() {
         val ex = assertThrows(ResponseStatusException::class.java) {
             equipmentService.getOverview(null, null, 0)
+        }
+        assertEquals(HttpStatus.BAD_REQUEST, ex.statusCode)
+    }
+
+    @Test
+    fun `registry page returns paged items and metadata`() {
+        val first = EquipmentEntity(
+            id = UUID.randomUUID(),
+            assetTag = "EQ-200",
+            name = "Pump 200",
+            category = "PUMP",
+            status = EquipmentStatus.ACTIVE,
+            updatedAt = Instant.now()
+        )
+        val second = EquipmentEntity(
+            id = UUID.randomUUID(),
+            assetTag = "EQ-201",
+            name = "Pump 201",
+            category = "PUMP",
+            status = EquipmentStatus.MAINTENANCE,
+            updatedAt = Instant.now()
+        )
+        val pageable = PageRequest.of(1, 2, Sort.by(Sort.Direction.DESC, "name"))
+        whenever(
+            equipmentRepository.findRegistryPage(
+                EquipmentStatus.ACTIVE,
+                "PUMP",
+                "pump",
+                pageable
+            )
+        ).thenReturn(PageImpl(listOf(first, second), pageable, 5))
+
+        val response = equipmentService.getRegistryPage(
+            status = EquipmentStatus.ACTIVE,
+            category = "PUMP",
+            query = "pump",
+            page = 1,
+            size = 2,
+            sortBy = "name",
+            sortDirection = "desc"
+        )
+
+        assertEquals(2, response.items.size)
+        assertEquals("EQ-200", response.items.first().assetTag)
+        assertEquals(1, response.page)
+        assertEquals(2, response.size)
+        assertEquals(5, response.totalItems)
+        assertEquals(3, response.totalPages)
+    }
+
+    @Test
+    fun `registry page normalizes unknown sort field and null filters`() {
+        val pageableCaptor: ArgumentCaptor<org.springframework.data.domain.Pageable> =
+            ArgumentCaptor.forClass(org.springframework.data.domain.Pageable::class.java)
+        whenever(
+            equipmentRepository.findRegistryPage(
+                org.mockito.ArgumentMatchers.isNull(),
+                org.mockito.ArgumentMatchers.isNull(),
+                org.mockito.ArgumentMatchers.isNull(),
+                org.mockito.ArgumentMatchers.any(org.springframework.data.domain.Pageable::class.java)
+            )
+        ).thenReturn(PageImpl(emptyList()))
+
+        equipmentService.getRegistryPage(
+            status = null,
+            category = "   ",
+            query = "   ",
+            page = null,
+            size = null,
+            sortBy = "unknown-field",
+            sortDirection = "sideways"
+        )
+
+        verify(equipmentRepository).findRegistryPage(
+            org.mockito.ArgumentMatchers.isNull(),
+            org.mockito.ArgumentMatchers.isNull(),
+            org.mockito.ArgumentMatchers.isNull(),
+            pageableCaptor.capture()
+        )
+        val pageable = pageableCaptor.value
+        assertEquals(0, pageable.pageNumber)
+        assertEquals(20, pageable.pageSize)
+        assertEquals("assetTag", pageable.sort.first().property)
+        assertEquals(Sort.Direction.ASC, pageable.sort.first().direction)
+    }
+
+    @Test
+    fun `registry page rejects negative page`() {
+        val ex = assertThrows(ResponseStatusException::class.java) {
+            equipmentService.getRegistryPage(
+                status = null,
+                category = null,
+                query = null,
+                page = -1,
+                size = 20,
+                sortBy = "assetTag",
+                sortDirection = "asc"
+            )
+        }
+        assertEquals(HttpStatus.BAD_REQUEST, ex.statusCode)
+    }
+
+    @Test
+    fun `registry page rejects non positive size`() {
+        val ex = assertThrows(ResponseStatusException::class.java) {
+            equipmentService.getRegistryPage(
+                status = null,
+                category = null,
+                query = null,
+                page = 0,
+                size = 0,
+                sortBy = "assetTag",
+                sortDirection = "asc"
+            )
         }
         assertEquals(HttpStatus.BAD_REQUEST, ex.statusCode)
     }
