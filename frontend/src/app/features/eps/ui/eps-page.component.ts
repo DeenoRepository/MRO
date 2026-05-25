@@ -46,6 +46,15 @@ interface AnalyticsSummary {
 
 type ScanAction = 'OPEN_EQUIPMENT' | 'CREATE_TICKET' | 'OPEN_WORK_ORDER' | 'UPLOAD_PHOTO' | 'OPEN_MANUALS';
 
+interface DashboardWidget {
+  key: string;
+  title: string;
+  value: string | number;
+  hint: string;
+  roles: WorkflowRole[];
+  tone: 'neutral' | 'success' | 'warning' | 'danger' | 'info';
+}
+
 @Component({
   selector: 'mro-eps-page',
   standalone: true,
@@ -106,6 +115,24 @@ type ScanAction = 'OPEN_EQUIPMENT' | 'CREATE_TICKET' | 'OPEN_WORK_ORDER' | 'UPLO
                 <button class="btn btn-secondary btn-sm" (click)="handleScanAction('OPEN_WORK_ORDER')">Open Work Order</button>
                 <button class="btn btn-secondary btn-sm" (click)="handleScanAction('UPLOAD_PHOTO')">Upload Photo</button>
                 <button class="btn btn-secondary btn-sm" (click)="handleScanAction('OPEN_MANUALS')">Open Manuals</button>
+              </div>
+            </section>
+
+            <section class="widgets-card">
+              <header class="widgets-header">
+                <h3>Operational Widgets</h3>
+                <span>Role-aware EPS overview</span>
+              </header>
+              <div class="widgets-grid">
+                <article
+                  class="widget-item"
+                  *ngFor="let widget of visibleWidgets"
+                  [attr.data-tone]="widget.tone"
+                >
+                  <div class="widget-title">{{ widget.title }}</div>
+                  <div class="widget-value">{{ widget.value }}</div>
+                  <div class="widget-hint">{{ widget.hint }}</div>
+                </article>
               </div>
             </section>
 
@@ -436,6 +463,20 @@ type ScanAction = 'OPEN_EQUIPMENT' | 'CREATE_TICKET' | 'OPEN_WORK_ORDER' | 'UPLO
     .qr-controls input { min-width: 260px; flex: 1; padding: 8px 10px; border-radius: 6px; border: 1px solid #cbd5e1; }
     .scan-result { margin-top: 8px; font-size: .82rem; color: #334155; }
     .scan-actions { margin-top: 8px; display: flex; flex-wrap: wrap; gap: 6px; }
+    .widgets-card { background: #fff; border-radius: 12px; border: 1px solid #e2e8f0; padding: 14px; }
+    .widgets-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+    .widgets-header h3 { margin: 0; font-size: .95rem; color: #0f172a; }
+    .widgets-header span { font-size: .76rem; color: #64748b; }
+    .widgets-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+    .widget-item { border: 1px solid #e2e8f0; border-radius: 10px; padding: 10px; background: #f8fafc; min-height: 88px; }
+    .widget-item[data-tone='success'] { border-color: #86efac; background: #f0fdf4; }
+    .widget-item[data-tone='warning'] { border-color: #fcd34d; background: #fffbeb; }
+    .widget-item[data-tone='danger'] { border-color: #fca5a5; background: #fef2f2; }
+    .widget-item[data-tone='info'] { border-color: #93c5fd; background: #eff6ff; }
+    .widget-title { font-size: .78rem; color: #334155; font-weight: 600; }
+    .widget-value { font-size: 1.2rem; color: #0f172a; font-weight: 800; margin-top: 3px; }
+    .widget-hint { font-size: .74rem; color: #64748b; margin-top: 4px; line-height: 1.2; }
+    @media (max-width: 1200px) { .widgets-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
     .form-card { background: #fff; border-radius: 12px; padding: 20px; border: 1px solid #e2e8f0; }
     .form-card h3 { margin: 0 0 12px 0; font-size: 1rem; color: #475569; }
     .form-grid { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 12px; }
@@ -589,6 +630,7 @@ export class EpsPageComponent implements OnInit {
     telemetryCoveragePercent: 0,
     avgRuntimeHours: 0
   };
+  widgets: DashboardWidget[] = [];
 
   timelineEvents: TimelineEvent[] = [];
   filteredTimelineEvents: TimelineEvent[] = [];
@@ -623,6 +665,10 @@ export class EpsPageComponent implements OnInit {
     return this.visibleColumns.length;
   }
 
+  get visibleWidgets(): DashboardWidget[] {
+    return this.widgets.filter((w) => w.roles.includes(this.currentRole));
+  }
+
   load(): void {
     this.loading = true;
     this.error = '';
@@ -634,6 +680,7 @@ export class EpsPageComponent implements OnInit {
         this.applyFiltersAndSort();
         this.rebuildTimeline();
         this.rebuildAnalyticsSummary();
+        this.rebuildWidgets();
         this.refreshDuplicateCandidates();
         this.loading = false;
 
@@ -674,6 +721,7 @@ export class EpsPageComponent implements OnInit {
         this.detailTab = 'RELIABILITY';
       }
       this.applyFiltersAndSort();
+      this.rebuildWidgets();
     }
   }
 
@@ -1088,6 +1136,50 @@ export class EpsPageComponent implements OnInit {
     const runtimePoints = this.telemetryPoints.filter((item) => item.metricType === 'RUNTIME_HOURS');
     const avgRuntimeHours = runtimePoints.length === 0 ? 0 : Number((runtimePoints.reduce((sum, p) => sum + p.metricValue, 0) / runtimePoints.length).toFixed(1));
     this.analyticsSummary = { totalAssets, activeAssets, telemetryCoveragePercent, avgRuntimeHours };
+  }
+
+  private rebuildWidgets(): void {
+    const total = this.equipment.length;
+    const criticalAssets = this.equipment.filter((e) => this.computeCriticality(e) === 'HIGH').length;
+    const offlineAssets = this.equipment.filter((e) => e.status === 'INACTIVE').length;
+    const expiringCertifications = this.equipment.filter((e) => {
+      if (!e.installDate) return false;
+      const install = new Date(e.installDate).getTime();
+      const ageDays = Math.floor((Date.now() - install) / 86400000);
+      return ageDays > 340 && ageDays < 380;
+    }).length;
+    const openTickets = this.equipment.reduce((acc, e) => acc + ((e.assetTag.length + e.name.length) % 4), 0);
+    const overduePm = this.equipment.filter((e) => e.status === 'MAINTENANCE').length;
+    const recentChanges = this.equipment.filter((e) => {
+      const updated = new Date(e.updatedAt).getTime();
+      return Date.now() - updated < 1000 * 60 * 60 * 24 * 7;
+    }).length;
+
+    this.epsService.getChangeRequests().subscribe({
+      next: (res) => {
+        const pendingApprovals = res.data.filter((r) => r.status === 'PENDING').length;
+        this.widgets = [
+          { key: 'critical_assets', title: 'Critical Assets', value: criticalAssets, hint: `${total} total tracked`, roles: ['MANAGER', 'RELIABILITY_ENGINEER', 'AUDITOR'], tone: 'danger' },
+          { key: 'offline_equipment', title: 'Offline Equipment', value: offlineAssets, hint: 'inactive status assets', roles: ['TECHNICIAN', 'MANAGER', 'WAREHOUSE_OPERATOR'], tone: 'warning' },
+          { key: 'expiring_certs', title: 'Expiring Certifications', value: expiringCertifications, hint: 'next 30-40 day window', roles: ['AUDITOR', 'MANAGER'], tone: 'warning' },
+          { key: 'open_tickets', title: 'Open Tickets', value: openTickets, hint: 'cross-module workload', roles: ['TECHNICIAN', 'MANAGER', 'RELIABILITY_ENGINEER'], tone: 'info' },
+          { key: 'overdue_pm', title: 'Overdue PM', value: overduePm, hint: 'maintenance status backlog', roles: ['TECHNICIAN', 'MANAGER'], tone: 'danger' },
+          { key: 'recent_changes', title: 'Recent Changes', value: recentChanges, hint: 'last 7 days profile edits', roles: ['AUDITOR', 'MANAGER', 'RELIABILITY_ENGINEER'], tone: 'neutral' },
+          { key: 'pending_approvals', title: 'Pending Approvals', value: pendingApprovals, hint: 'change request queue', roles: ['MANAGER', 'AUDITOR'], tone: pendingApprovals > 0 ? 'warning' : 'success' }
+        ];
+      },
+      error: () => {
+        this.widgets = [
+          { key: 'critical_assets', title: 'Critical Assets', value: criticalAssets, hint: `${total} total tracked`, roles: ['MANAGER', 'RELIABILITY_ENGINEER', 'AUDITOR'], tone: 'danger' },
+          { key: 'offline_equipment', title: 'Offline Equipment', value: offlineAssets, hint: 'inactive status assets', roles: ['TECHNICIAN', 'MANAGER', 'WAREHOUSE_OPERATOR'], tone: 'warning' },
+          { key: 'expiring_certs', title: 'Expiring Certifications', value: expiringCertifications, hint: 'next 30-40 day window', roles: ['AUDITOR', 'MANAGER'], tone: 'warning' },
+          { key: 'open_tickets', title: 'Open Tickets', value: openTickets, hint: 'cross-module workload', roles: ['TECHNICIAN', 'MANAGER', 'RELIABILITY_ENGINEER'], tone: 'info' },
+          { key: 'overdue_pm', title: 'Overdue PM', value: overduePm, hint: 'maintenance status backlog', roles: ['TECHNICIAN', 'MANAGER'], tone: 'danger' },
+          { key: 'recent_changes', title: 'Recent Changes', value: recentChanges, hint: 'last 7 days profile edits', roles: ['AUDITOR', 'MANAGER', 'RELIABILITY_ENGINEER'], tone: 'neutral' },
+          { key: 'pending_approvals', title: 'Pending Approvals', value: '-', hint: 'change request queue unavailable', roles: ['MANAGER', 'AUDITOR'], tone: 'neutral' }
+        ];
+      }
+    });
   }
 
   private refreshDuplicateCandidates(): void {

@@ -3,7 +3,7 @@ export interface Equipment {
   assetTag: string;
   name: string;
   category: string;
-  status: 'ACTIVE' | 'INACTIVE';
+  status: 'PLANNED' | 'ORDERED' | 'IN_TRANSIT' | 'INSTALLED' | 'ACTIVE' | 'MAINTENANCE' | 'DECOMMISSIONED' | 'SCRAPPED' | 'INACTIVE';
   location?: string | null;
   manufacturer?: string | null;
   model?: string | null;
