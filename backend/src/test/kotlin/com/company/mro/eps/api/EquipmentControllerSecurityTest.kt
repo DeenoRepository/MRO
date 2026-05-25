@@ -2,10 +2,13 @@ package com.company.mro.eps.api
 
 import com.company.mro.eps.application.EquipmentService
 import com.company.mro.eps.domain.EquipmentStatus
+import com.company.mro.eps.dto.EquipmentRegistryPageResponse
 import com.company.mro.eps.dto.EquipmentResponse
 import com.fasterxml.jackson.databind.ObjectMapper
 import org.junit.jupiter.api.Test
 import org.mockito.ArgumentMatchers.any
+import org.mockito.ArgumentMatchers.anyInt
+import org.mockito.ArgumentMatchers.anyString
 import org.mockito.Mockito.`when`
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest
@@ -14,6 +17,7 @@ import org.springframework.context.annotation.Import
 import org.springframework.http.MediaType
 import org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.httpBasic
 import org.springframework.test.web.servlet.MockMvc
+import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers.status
 import java.time.Instant
@@ -79,6 +83,47 @@ class EquipmentControllerSecurityTest {
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(payload))
         ).andExpect(status().isCreated)
+    }
+
+    @Test
+    fun `viewer can read registry page`() {
+        `when`(
+            equipmentService.getRegistryPage(
+                any(),
+                anyString(),
+                anyString(),
+                anyInt(),
+                anyInt(),
+                anyString(),
+                anyString()
+            )
+        ).thenReturn(
+            EquipmentRegistryPageResponse(
+                items = emptyList(),
+                page = 0,
+                size = 20,
+                totalItems = 0,
+                totalPages = 0
+            )
+        )
+
+        mockMvc.perform(
+            get("/api/v1/eps/equipment/registry")
+                .with(httpBasic("viewer", "viewer"))
+                .queryParam("query", "pump")
+                .queryParam("page", "0")
+                .queryParam("size", "20")
+        ).andExpect(status().isOk)
+    }
+
+    @Test
+    fun `anonymous cannot read registry page`() {
+        mockMvc.perform(
+            get("/api/v1/eps/equipment/registry")
+                .queryParam("query", "pump")
+                .queryParam("page", "0")
+                .queryParam("size", "20")
+        ).andExpect(status().isUnauthorized)
     }
 }
 

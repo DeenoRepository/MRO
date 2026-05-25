@@ -1,6 +1,7 @@
 import { CommonModule } from '@angular/common';
-import { Component, OnInit } from '@angular/core';
+import { Component, OnDestroy, OnInit } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
+import { Subject, debounceTime, distinctUntilChanged, takeUntil } from 'rxjs';
 import { EpsService } from '../data/eps.service';
 import {
   CreateEquipmentRequest,
@@ -607,7 +608,10 @@ interface EquipmentDraft {
     .placeholder-card p { margin: 0; color: #64748b; font-size: 0.86rem; }
   `]
 })
-export class EpsPageComponent implements OnInit {
+export class EpsPageComponent implements OnInit, OnDestroy {
+  private readonly destroy$ = new Subject<void>();
+  private readonly searchQueryInput$ = new Subject<string>();
+
   private readonly filtersStorageKey = 'eps_registry_saved_filters_v2';
   private readonly equipmentDraftsStorageKey = 'eps_equipment_drafts_v1';
 
@@ -703,7 +707,18 @@ export class EpsPageComponent implements OnInit {
     this.loadSavedFilters();
     this.loadEquipmentDrafts();
     this.form.valueChanges.subscribe(() => this.refreshDuplicateCandidates());
+    this.searchQueryInput$
+      .pipe(debounceTime(300), distinctUntilChanged(), takeUntil(this.destroy$))
+      .subscribe((value) => {
+        this.searchQuery = value;
+        this.applyFiltersAndSort();
+      });
     this.load();
+  }
+
+  ngOnDestroy(): void {
+    this.destroy$.next();
+    this.destroy$.complete();
   }
 
   get visibleColumns(): { key: RegistryColumnKey; label: string; visible: boolean }[] {
@@ -833,7 +848,7 @@ export class EpsPageComponent implements OnInit {
 
   onSearchInput(value: string): void {
     this.searchQuery = value;
-    this.applyFiltersAndSort();
+    this.searchQueryInput$.next(value);
   }
 
   setStatusFilter(value: string): void {
