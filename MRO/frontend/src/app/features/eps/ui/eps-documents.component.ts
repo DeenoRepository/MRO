@@ -152,7 +152,7 @@ import { Equipment, EquipmentDocument } from '../data/eps.models';
     </div>
   `,
   styles: [`
-    .documents-card { background: #fff; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,.05); border: 1px solid #eef2f6; padding: 24px; display: flex; flex-direction: column; gap: 20px; }
+    .documents-card { background: var(--bg-card, #fff); border-radius: var(--border-radius-lg, 16px); box-shadow: var(--shadow-premium, 0 10px 30px -10px rgba(15, 23, 42, 0.08)); border: 1px solid var(--border-color, hsla(220, 15%, 85%, 0.6)); padding: 24px; display: flex; flex-direction: column; gap: 20px; transition: var(--transition-smooth, all 0.3s ease); }
     .card-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #f1f5f9; padding-bottom: 12px; }
     .card-header h3 { margin: 0; color: #1e293b; font-size: 1.25rem; }
     .eq-name { color: #0284c7; font-weight: 700; }

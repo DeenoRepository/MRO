@@ -526,7 +526,7 @@ interface EquipmentDraft {
           <div class="workspace-area">
             
             <!-- Feature Sub-navigation within Equipment Workspace -->
-            <div class="workspace-nav-tabs card-premium">
+            <div class="workspace-nav-tabs">
               <div class="nav-buttons">
                 <button *ngFor="let tab of detailTabs" class="workspace-tab-btn" [class.active]="detailTab === tab" (click)="onDetailTabSelect(tab)">
                   {{ tab }}
@@ -1856,8 +1856,8 @@ interface EquipmentDraft {
       justify-content: space-between;
       align-items: center;
       flex-wrap: wrap;
-      gap: 12px;
-      padding: 12px 20px;
+      gap: 8px;
+      padding: 4px 4px 12px 4px;
     }
 
     .nav-title-group {
