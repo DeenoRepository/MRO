@@ -1,7 +1,7 @@
 import { CommonModule } from '@angular/common';
 import { Component, OnDestroy, OnInit } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
-import { Subject, debounceTime, distinctUntilChanged, takeUntil } from 'rxjs';
+import { Subject, catchError, debounceTime, distinctUntilChanged, of, switchMap, takeUntil } from 'rxjs';
 import { EpsService } from '../data/eps.service';
 import {
   CreateEquipmentRequest,
@@ -611,6 +611,7 @@ interface EquipmentDraft {
 export class EpsPageComponent implements OnInit, OnDestroy {
   private readonly destroy$ = new Subject<void>();
   private readonly searchQueryInput$ = new Subject<string>();
+  private readonly registryLoadTrigger$ = new Subject<void>();
 
   private readonly filtersStorageKey = 'eps_registry_saved_filters_v2';
   private readonly equipmentDraftsStorageKey = 'eps_equipment_drafts_v1';
@@ -712,6 +713,38 @@ export class EpsPageComponent implements OnInit, OnDestroy {
       .subscribe((value) => {
         this.searchQuery = value;
         this.applyFiltersAndSort();
+      });
+    this.registryLoadTrigger$
+      .pipe(
+        switchMap(() => this.epsService.getEquipmentRegistryPage({
+          status: this.statusFilter,
+          category: this.categoryFilter,
+          query: this.searchQuery,
+          page: this.currentPage - 1,
+          size: this.pageSize,
+          sortBy: this.sortField,
+          sortDirection: this.sortDirection
+        }).pipe(
+          catchError(() => of({
+            data: {
+              items: [],
+              page: 0,
+              size: this.pageSize,
+              totalItems: 0,
+              totalPages: 1
+            },
+            meta: {},
+            errors: []
+          }))
+        )),
+        takeUntil(this.destroy$)
+      )
+      .subscribe((res) => {
+        this.paginatedEquipment = res.data.items;
+        this.filteredEquipment = res.data.items;
+        this.totalRegistryItems = res.data.totalItems;
+        this.totalRegistryPages = Math.max(1, res.data.totalPages);
+        this.loading = false;
       });
     this.load();
   }
@@ -1162,30 +1195,7 @@ export class EpsPageComponent implements OnInit, OnDestroy {
 
   private applyPagination(): void {
     this.loading = true;
-    this.epsService.getEquipmentRegistryPage({
-      status: this.statusFilter,
-      category: this.categoryFilter,
-      query: this.searchQuery,
-      page: this.currentPage - 1,
-      size: this.pageSize,
-      sortBy: this.sortField,
-      sortDirection: this.sortDirection
-    }).subscribe({
-      next: (res) => {
-        this.paginatedEquipment = res.data.items;
-        this.filteredEquipment = res.data.items;
-        this.totalRegistryItems = res.data.totalItems;
-        this.totalRegistryPages = Math.max(1, res.data.totalPages);
-        this.loading = false;
-      },
-      error: () => {
-        this.paginatedEquipment = [];
-        this.filteredEquipment = [];
-        this.totalRegistryItems = 0;
-        this.totalRegistryPages = 1;
-        this.loading = false;
-      }
-    });
+    this.registryLoadTrigger$.next();
   }
 
   onDetailTabSelect(tab: EquipmentDetailTab): void {
@@ -1203,17 +1213,6 @@ export class EpsPageComponent implements OnInit, OnDestroy {
     if (this.detailTab === 'INVENTORY' && this.mediaLoadedForEquipmentId !== this.selectedEquipment.id) {
       this.loadMedia(this.selectedEquipment.id);
       this.mediaLoadedForEquipmentId = this.selectedEquipment.id;
-    }
-  }
-
-  private readSortValue(item: Equipment, field: RegistryColumnKey): string {
-    switch (field) {
-      case 'assetTag': return item.assetTag;
-      case 'name': return item.name;
-      case 'category': return item.category;
-      case 'status': return item.status;
-      case 'location': return item.location ?? '';
-      default: return '';
     }
   }
 
