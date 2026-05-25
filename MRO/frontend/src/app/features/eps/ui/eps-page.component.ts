@@ -81,10 +81,7 @@ interface EquipmentDraft {
       <header class="eps-page-header">
         <div class="header-title-area">
           <div class="brand-badge">EPS</div>
-          <div>
-            <h1>Equipment Registry</h1>
-            <p>Enterprise operations workspace with clear sections for intake, control, and traceability.</p>
-          </div>
+          <span class="header-subtitle-text">Equipment Control Center</span>
         </div>
 
         <!-- Integrated Dev Tools & Info in Header -->
@@ -879,6 +876,12 @@ interface EquipmentDraft {
       font-size: 0.9rem;
     }
 
+    .header-subtitle-text {
+      font-size: 0.95rem;
+      font-weight: 700;
+      color: var(--text-muted);
+    }
+
     .header-actions-area {
       display: flex;
       align-items: center;
@@ -1181,6 +1184,7 @@ interface EquipmentDraft {
     .search-box-wrapper {
       position: relative;
       flex: 1;
+      max-width: 480px;
       min-width: 240px;
     }
 
