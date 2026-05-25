@@ -1413,6 +1413,44 @@ interface EquipmentDraft {
       color: var(--text-muted);
     }
 
+    /* Form Layout Elements */
+    .form-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: var(--border-radius-lg);
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .form-card h3 {
+      margin: 0;
+      font-size: 1rem;
+      font-weight: 800;
+      color: var(--text-color);
+    }
+
+    .form-grid {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .form-grid label {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      font-size: 0.76rem;
+      font-weight: 700;
+      color: var(--text-muted);
+    }
+
+    .form-grid input, .form-grid select {
+      width: 100%;
+      box-sizing: border-box;
+    }
+
     .category-chip-list {
       display: flex;
       flex-direction: column;
