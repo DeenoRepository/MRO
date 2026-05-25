@@ -2,20 +2,37 @@ import { CommonModule } from '@angular/common';
 import { Component, OnInit } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { EpsService } from '../data/eps.service';
-import { CreateEquipmentRequest, Equipment, EquipmentDocument, TelemetryMetricType, TelemetryPoint, EquipmentMediaItem, EquipmentMediaType } from '../data/eps.models';
-import { EpsDocumentsComponent } from './eps-documents.component';
+import {
+  CreateEquipmentRequest,
+  Equipment,
+  EquipmentDocument,
+  EquipmentMediaItem,
+  EquipmentMediaType,
+  TelemetryMetricType,
+  TelemetryPoint
+} from '../data/eps.models';
 import { EpsChangeRequestsComponent } from './eps-change-requests.component';
+import { EpsDocumentsComponent } from './eps-documents.component';
 
 type RegistryColumnKey = 'assetTag' | 'name' | 'category' | 'status' | 'location';
-type TimelineEventType = 'CREATED' | 'UPDATED' | 'DOCUMENT';
-type MediaFilterType = 'ALL' | EquipmentMediaType;
+type WorkflowRole = 'TECHNICIAN' | 'MANAGER' | 'AUDITOR' | 'WAREHOUSE_OPERATOR' | 'RELIABILITY_ENGINEER';
+type EquipmentDetailTab = 'OVERVIEW' | 'DOCUMENTS' | 'MAINTENANCE' | 'TICKETS' | 'INVENTORY' | 'HISTORY' | 'COMPLIANCE' | 'RELIABILITY';
+type TimelineFilterType = 'ALL' | 'MAINTENANCE' | 'DOCUMENTS' | 'STATUS' | 'APPROVALS' | 'TICKETS' | 'INVENTORY';
+
+interface SavedFilter {
+  name: string;
+  scope: 'PERSONAL' | 'TEAM' | 'GLOBAL';
+  searchQuery: string;
+  statusFilter: string;
+  categoryFilter: string;
+}
 
 interface TimelineEvent {
   id: string;
   equipmentId: string;
   equipmentLabel: string;
   title: string;
-  type: TimelineEventType;
+  type: Exclude<TimelineFilterType, 'ALL'>;
   at: string;
   meta?: string;
 }
@@ -32,23 +49,37 @@ interface AnalyticsSummary {
   standalone: true,
   imports: [CommonModule, ReactiveFormsModule, EpsDocumentsComponent, EpsChangeRequestsComponent],
   template: `
-    <div class="eps-dashboard">
+    <div class="eps-dashboard" [class.technician-mode]="technicianMode">
       <nav class="tab-navigation">
-        <button (click)="activeTab = 'registry'" [class.active]="activeTab === 'registry'">
-          Equipment Registry
-        </button>
-        <button (click)="activeTab = 'requests'" [class.active]="activeTab === 'requests'">
-          Change Requests
-        </button>
+        <button (click)="activeTab = 'registry'" [class.active]="activeTab === 'registry'">Equipment Registry</button>
+        <button (click)="activeTab = 'requests'" [class.active]="activeTab === 'requests'">Change Requests</button>
       </nav>
 
+      <div class="experience-toolbar" *ngIf="activeTab === 'registry'">
+        <div class="role-controls">
+          <label>Role</label>
+          <select [value]="currentRole" (change)="setRole($any($event.target).value)">
+            <option value="TECHNICIAN">Technician</option>
+            <option value="MANAGER">Manager</option>
+            <option value="AUDITOR">Auditor</option>
+            <option value="WAREHOUSE_OPERATOR">Warehouse Operator</option>
+            <option value="RELIABILITY_ENGINEER">Reliability Engineer</option>
+          </select>
+          <button class="btn btn-secondary btn-sm" (click)="technicianMode = !technicianMode">
+            {{ technicianMode ? 'Standard Mode' : 'Technician Mode' }}
+          </button>
+        </div>
+        <div class="workflow-note">
+          Workflow context: {{ currentRole }} | {{ selectedEquipment?.status || 'no asset selected' }}
+        </div>
+      </div>
+
       <main class="tab-content">
-        <!-- REGISTRY TAB -->
         <div *ngIf="activeTab === 'registry'" class="registry-grid">
           <div class="registry-list-section">
             <header class="section-header">
               <h2>Equipment Registry</h2>
-              <p>Add and view physical assets and their technical passports.</p>
+              <p>High-density workspace with saved filters, column layouts, smart search, and bulk operations.</p>
             </header>
 
             <form class="form-card" [formGroup]="form" (ngSubmit)="create()">
@@ -78,7 +109,7 @@ interface AnalyticsSummary {
                   type="text"
                   [value]="searchQuery"
                   (input)="onSearchInput($any($event.target).value)"
-                  placeholder="Smart search: asset tag, serial, manufacturer, location"
+                  placeholder="Smart search: tag, serial, manufacturer, location, alias, docs"
                 />
                 <select [value]="statusFilter" (change)="setStatusFilter($any($event.target).value)">
                   <option value="ALL">All statuses</option>
@@ -91,68 +122,86 @@ interface AnalyticsSummary {
                 <button class="btn btn-secondary btn-sm" (click)="toggleColumnPanel()">
                   {{ showColumnPanel ? 'Hide Columns' : 'Columns' }}
                 </button>
-                <button class="btn btn-secondary btn-sm" (click)="saveCurrentFilter()">
-                  Save Filter
-                </button>
+              </div>
+
+              <div class="table-toolbar second">
+                <input type="text" [value]="newFilterName" (input)="newFilterName = $any($event.target).value" placeholder="Filter name" />
+                <select [value]="newFilterScope" (change)="newFilterScope = $any($event.target).value">
+                  <option value="PERSONAL">Personal</option>
+                  <option value="TEAM">Team</option>
+                  <option value="GLOBAL">Global</option>
+                </select>
+                <button class="btn btn-secondary btn-sm" (click)="saveCurrentFilter()">Save Filter</button>
               </div>
 
               <div class="column-panel" *ngIf="showColumnPanel">
-                <label *ngFor="let col of columns">
-                  <input
-                    type="checkbox"
-                    [checked]="col.visible"
-                    (change)="setColumnVisibility(col.key, $any($event.target).checked)"
-                  />
-                  {{ col.label }}
-                </label>
+                <div class="column-config" *ngFor="let col of columns; let i = index">
+                  <label>
+                    <input type="checkbox" [checked]="col.visible" (change)="setColumnVisibility(col.key, $any($event.target).checked)" />
+                    {{ col.label }}
+                  </label>
+                  <div class="column-order">
+                    <button class="btn btn-secondary btn-sm" (click)="moveColumn(i, -1)" [disabled]="i === 0">Up</button>
+                    <button class="btn btn-secondary btn-sm" (click)="moveColumn(i, 1)" [disabled]="i === columns.length - 1">Down</button>
+                  </div>
+                </div>
               </div>
 
               <div class="saved-filters" *ngIf="savedFilters.length > 0">
                 <button class="saved-filter-chip" *ngFor="let f of savedFilters; let idx = index" (click)="applySavedFilter(f)">
-                  {{ f.name }}
-                  <span class="remove-chip" (click)="removeSavedFilter(idx); $event.stopPropagation()">×</span>
+                  {{ f.name }} [{{ f.scope }}]
+                  <span class="remove-chip" (click)="removeSavedFilter(idx); $event.stopPropagation()">x</span>
                 </button>
+              </div>
+
+              <div class="bulk-toolbar" *ngIf="selectedRows.size > 0">
+                <span>{{ selectedRows.size }} selected</span>
+                <button class="btn btn-secondary btn-sm" (click)="bulkExport()">Export CSV</button>
+                <button class="btn btn-secondary btn-sm" (click)="bulkStatusUpdate('MAINTENANCE')">Set MAINTENANCE</button>
+                <button class="btn btn-secondary btn-sm" (click)="bulkPrintQr()">Print QR</button>
+                <button class="btn btn-secondary btn-sm" (click)="bulkAssignDocument()">Assign Document</button>
               </div>
 
               <table class="table">
                 <thead>
                   <tr>
-                    <th *ngIf="isColumnVisible('assetTag')" (click)="sortBy('assetTag')" class="sortable">
-                      Asset Tag {{ sortIndicator('assetTag') }}
-                    </th>
-                    <th *ngIf="isColumnVisible('name')" (click)="sortBy('name')" class="sortable">
-                      Name {{ sortIndicator('name') }}
-                    </th>
-                    <th *ngIf="isColumnVisible('category')" (click)="sortBy('category')" class="sortable">
-                      Category {{ sortIndicator('category') }}
-                    </th>
-                    <th *ngIf="isColumnVisible('status')" (click)="sortBy('status')" class="sortable">
-                      Status {{ sortIndicator('status') }}
-                    </th>
-                    <th *ngIf="isColumnVisible('location')" (click)="sortBy('location')" class="sortable">
-                      Location {{ sortIndicator('location') }}
+                    <th><input type="checkbox" [checked]="isAllFilteredSelected()" (change)="toggleSelectAllFiltered($any($event.target).checked)" /></th>
+                    <th *ngFor="let col of visibleColumns" (click)="sortBy(col.key)" class="sortable">
+                      {{ col.label }} {{ sortIndicator(col.key) }}
                     </th>
                     <th>Action</th>
                   </tr>
                 </thead>
                 <tbody>
-                  <tr *ngFor="let item of filteredEquipment" 
-                      [class.selected]="selectedEquipment?.id === item.id"
-                      (click)="selectEquipment(item)"
-                      class="clickable-row">
-                    <td *ngIf="isColumnVisible('assetTag')"><strong>{{ item.assetTag }}</strong></td>
-                    <td *ngIf="isColumnVisible('name')">{{ item.name }}</td>
-                    <td *ngIf="isColumnVisible('category')">{{ item.category }}</td>
-                    <td *ngIf="isColumnVisible('status')"><span class="status-tag active">{{ item.status }}</span></td>
-                    <td *ngIf="isColumnVisible('location')">{{ item.location || '-' }}</td>
+                  <tr
+                    *ngFor="let item of filteredEquipment"
+                    [class.selected]="selectedEquipment?.id === item.id"
+                    (click)="selectEquipment(item)"
+                    class="clickable-row"
+                  >
                     <td>
-                      <button (click)="selectEquipment(item); $event.stopPropagation()" class="btn btn-secondary btn-sm">
-                        View Documents
-                      </button>
+                      <input
+                        type="checkbox"
+                        [checked]="isSelected(item.id)"
+                        (click)="$event.stopPropagation()"
+                        (change)="toggleSelection(item.id, $any($event.target).checked)"
+                      />
+                    </td>
+                    <td *ngFor="let col of visibleColumns">
+                      <ng-container [ngSwitch]="col.key">
+                        <strong *ngSwitchCase="'assetTag'">{{ item.assetTag }}</strong>
+                        <span *ngSwitchCase="'name'">{{ item.name }}</span>
+                        <span *ngSwitchCase="'category'">{{ item.category }}</span>
+                        <span *ngSwitchCase="'status'"><span class="status-tag active">{{ item.status }}</span></span>
+                        <span *ngSwitchCase="'location'">{{ item.location || '-' }}</span>
+                      </ng-container>
+                    </td>
+                    <td>
+                      <button (click)="selectEquipment(item); $event.stopPropagation()" class="btn btn-secondary btn-sm">Open</button>
                     </td>
                   </tr>
                   <tr *ngIf="filteredEquipment.length === 0">
-                    <td [attr.colspan]="visibleColumnCount + 1" class="no-data">No equipment matches current filters.</td>
+                    <td [attr.colspan]="visibleColumnCount + 2" class="no-data">No equipment matches current filters.</td>
                   </tr>
                 </tbody>
               </table>
@@ -160,19 +209,18 @@ interface AnalyticsSummary {
 
             <section class="timeline-card">
               <header class="timeline-header">
-                <h3>Activity Timeline</h3>
+                <h3>Unified Timeline</h3>
                 <select [value]="timelineTypeFilter" (change)="setTimelineTypeFilter($any($event.target).value)">
                   <option value="ALL">All events</option>
-                  <option value="CREATED">Created</option>
-                  <option value="UPDATED">Updated</option>
-                  <option value="DOCUMENT">Documents</option>
+                  <option value="MAINTENANCE">Maintenance</option>
+                  <option value="DOCUMENTS">Documents</option>
+                  <option value="STATUS">Status</option>
+                  <option value="APPROVALS">Approvals</option>
+                  <option value="TICKETS">Tickets</option>
+                  <option value="INVENTORY">Inventory</option>
                 </select>
               </header>
-
-              <div class="timeline-empty" *ngIf="filteredTimelineEvents.length === 0">
-                No events yet.
-              </div>
-
+              <div class="timeline-empty" *ngIf="filteredTimelineEvents.length === 0">No events yet.</div>
               <ul class="timeline-list" *ngIf="filteredTimelineEvents.length > 0">
                 <li *ngFor="let event of filteredTimelineEvents">
                   <div class="timeline-dot" [attr.data-type]="event.type"></div>
@@ -188,109 +236,32 @@ interface AnalyticsSummary {
             </section>
           </div>
 
-          <!-- DOCUMENT SIDE PANEL -->
-          <div class="registry-detail-section" *ngIf="selectedEquipment">
-            <mro-eps-documents [equipment]="selectedEquipment"></mro-eps-documents>
-            <section class="telemetry-card">
-              <header class="telemetry-header">
-                <h3>Live Telemetry</h3>
-                <div class="telemetry-actions">
-                  <select [value]="telemetryMetricFilter" (change)="setTelemetryMetricFilter($any($event.target).value)">
-                    <option value="ALL">All metrics</option>
-                    <option value="TEMPERATURE">Temperature</option>
-                    <option value="VIBRATION">Vibration</option>
-                    <option value="PRESSURE">Pressure</option>
-                    <option value="RUNTIME_HOURS">Runtime Hours</option>
-                  </select>
-                  <button class="btn btn-secondary btn-sm" (click)="refreshTelemetry()">Refresh</button>
-                </div>
-              </header>
-              <div class="telemetry-empty" *ngIf="telemetryLoading">Loading telemetry...</div>
-              <div class="telemetry-empty" *ngIf="!telemetryLoading && telemetryPoints.length === 0">No telemetry points.</div>
-              <table class="table telemetry-table" *ngIf="!telemetryLoading && telemetryPoints.length > 0">
-                <thead>
-                  <tr>
-                    <th>Metric</th>
-                    <th>Value</th>
-                    <th>Recorded</th>
-                    <th>Source</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr *ngFor="let point of telemetryPoints">
-                    <td>{{ formatMetric(point.metricType) }}</td>
-                    <td>{{ point.metricValue }} {{ point.unit || '' }}</td>
-                    <td>{{ point.recordedAt | date: 'short' }}</td>
-                    <td>{{ point.source || '-' }}</td>
-                  </tr>
-                </tbody>
-              </table>
+          <div class="registry-detail-section sticky-panel" *ngIf="selectedEquipment">
+            <section class="sticky-summary">
+              <div class="summary-title">
+                <strong>{{ selectedEquipment.assetTag }}</strong> | {{ selectedEquipment.name }}
+              </div>
+              <div class="summary-grid">
+                <div>Status: <span class="status-tag active">{{ selectedEquipment.status }}</span></div>
+                <div>Location: {{ selectedEquipment.location || '-' }}</div>
+                <div>Criticality: {{ computeCriticality(selectedEquipment) }}</div>
+                <div>Open Tickets: {{ selectedTicketCount }}</div>
+                <div>Active WO: {{ selectedWorkOrderCount }}</div>
+              </div>
+              <div class="context-actions">
+                <button class="btn btn-secondary btn-sm" (click)="openQuickAction('ticket')">Create Ticket</button>
+                <button class="btn btn-secondary btn-sm" (click)="openQuickAction('workorder')">Open WO</button>
+                <button class="btn btn-secondary btn-sm" (click)="openQuickAction('manuals')">Open Manuals</button>
+              </div>
             </section>
 
-            <section class="media-card">
-              <header class="media-header">
-                <h3>Inspection Media</h3>
-                <div class="media-actions">
-                  <select [value]="mediaFilterType" (change)="setMediaFilter($any($event.target).value)">
-                    <option value="ALL">All media</option>
-                    <option value="PHOTO">Photos</option>
-                    <option value="VIDEO">Videos</option>
-                  </select>
-                  <button class="btn btn-secondary btn-sm" (click)="refreshMedia()">Refresh</button>
-                </div>
-              </header>
-
-              <div class="media-upload-row">
-                <select [value]="uploadMediaType" (change)="uploadMediaType = $any($event.target).value">
-                  <option value="PHOTO">Photo</option>
-                  <option value="VIDEO">Video</option>
-                </select>
-                <input type="text" [value]="uploadMediaAnnotation" (input)="uploadMediaAnnotation = $any($event.target).value" placeholder="Inspection note / annotation" />
-                <input type="file" (change)="onMediaFileSelected($event)" />
-                <button class="btn btn-primary btn-sm" (click)="uploadMedia()" [disabled]="mediaUploading || !uploadMediaFile">
-                  {{ mediaUploading ? 'Uploading...' : 'Upload' }}
-                </button>
-              </div>
-
-              <p class="error" *ngIf="mediaError">{{ mediaError }}</p>
-              <div class="telemetry-empty" *ngIf="mediaLoading">Loading media...</div>
-              <div class="telemetry-empty" *ngIf="!mediaLoading && filteredMediaItems.length === 0">No media records.</div>
-
-              <ul class="media-list" *ngIf="!mediaLoading && filteredMediaItems.length > 0">
-                <li *ngFor="let item of filteredMediaItems">
-                  <div class="media-row-head">
-                    <strong>{{ item.fileName }}</strong>
-                    <span class="media-type">{{ item.mediaType }}</span>
-                  </div>
-                  <div class="media-row-meta">
-                    {{ item.uploadedAt | date: 'medium' }}
-                    <span *ngIf="item.annotation"> | {{ item.annotation }}</span>
-                    <span *ngIf="item.fileSize"> | {{ item.fileSize | number }} bytes</span>
-                  </div>
-                  <a class="media-download" [href]="buildMediaDownloadUrl(item.id)" target="_blank" rel="noopener noreferrer">Download</a>
-                </li>
-              </ul>
+            <section class="detail-tabs">
+              <button *ngFor="let tab of detailTabs" class="detail-tab-btn" [class.active]="detailTab === tab" (click)="detailTab = tab">
+                {{ tab }}
+              </button>
             </section>
 
-            <section class="graph-card">
-              <header class="graph-header">
-                <h3>Asset Relationship Snapshot</h3>
-              </header>
-              <div class="graph-center-node" *ngIf="selectedEquipment">
-                {{ selectedEquipment.assetTag }} | {{ selectedEquipment.name }}
-              </div>
-              <div class="graph-empty" *ngIf="relatedEquipment.length === 0">
-                No related assets by category or location.
-              </div>
-              <ul class="graph-list" *ngIf="relatedEquipment.length > 0">
-                <li *ngFor="let rel of relatedEquipment">
-                  <strong>{{ rel.assetTag }}</strong> - {{ rel.name }}
-                  <span class="graph-reason">{{ buildRelationReason(rel) }}</span>
-                </li>
-              </ul>
-            </section>
-
-            <section class="analytics-card">
+            <section *ngIf="detailTab === 'OVERVIEW'" class="analytics-card">
               <header class="analytics-header">
                 <h3>Reliability Snapshot</h3>
               </header>
@@ -313,13 +284,102 @@ interface AnalyticsSummary {
                 </div>
               </div>
             </section>
+
+            <ng-container *ngIf="detailTab === 'DOCUMENTS'">
+              <mro-eps-documents [equipment]="selectedEquipment"></mro-eps-documents>
+            </ng-container>
+
+            <section *ngIf="detailTab === 'RELIABILITY'" class="telemetry-card">
+              <header class="telemetry-header">
+                <h3>Telemetry</h3>
+                <div class="telemetry-actions">
+                  <select [value]="telemetryMetricFilter" (change)="setTelemetryMetricFilter($any($event.target).value)">
+                    <option value="ALL">All metrics</option>
+                    <option value="TEMPERATURE">Temperature</option>
+                    <option value="VIBRATION">Vibration</option>
+                    <option value="PRESSURE">Pressure</option>
+                    <option value="RUNTIME_HOURS">Runtime Hours</option>
+                  </select>
+                  <button class="btn btn-secondary btn-sm" (click)="refreshTelemetry()">Refresh</button>
+                </div>
+              </header>
+              <div class="telemetry-empty" *ngIf="telemetryLoading">Loading telemetry...</div>
+              <div class="telemetry-empty" *ngIf="!telemetryLoading && telemetryPoints.length === 0">No telemetry points.</div>
+              <table class="table telemetry-table" *ngIf="!telemetryLoading && telemetryPoints.length > 0">
+                <thead>
+                  <tr><th>Metric</th><th>Value</th><th>Recorded</th><th>Source</th></tr>
+                </thead>
+                <tbody>
+                  <tr *ngFor="let point of telemetryPoints">
+                    <td>{{ formatMetric(point.metricType) }}</td>
+                    <td>{{ point.metricValue }} {{ point.unit || '' }}</td>
+                    <td>{{ point.recordedAt | date: 'short' }}</td>
+                    <td>{{ point.source || '-' }}</td>
+                  </tr>
+                </tbody>
+              </table>
+            </section>
+
+            <section *ngIf="detailTab === 'INVENTORY'" class="media-card">
+              <header class="media-header">
+                <h3>Inspection Media</h3>
+                <div class="media-actions">
+                  <select [value]="mediaFilterType" (change)="setMediaFilter($any($event.target).value)">
+                    <option value="ALL">All media</option>
+                    <option value="PHOTO">Photos</option>
+                    <option value="VIDEO">Videos</option>
+                  </select>
+                  <button class="btn btn-secondary btn-sm" (click)="refreshMedia()">Refresh</button>
+                </div>
+              </header>
+
+              <div class="media-upload-row">
+                <select [value]="uploadMediaType" (change)="uploadMediaType = $any($event.target).value">
+                  <option value="PHOTO">Photo</option>
+                  <option value="VIDEO">Video</option>
+                </select>
+                <input type="text" [value]="uploadMediaAnnotation" (input)="uploadMediaAnnotation = $any($event.target).value" placeholder="Inspection annotation" />
+                <input type="file" (change)="onMediaFileSelected($event)" />
+                <button class="btn btn-primary btn-sm" (click)="uploadMedia()" [disabled]="mediaUploading || !uploadMediaFile">
+                  {{ mediaUploading ? 'Uploading...' : 'Upload' }}
+                </button>
+              </div>
+
+              <p class="error" *ngIf="mediaError">{{ mediaError }}</p>
+              <div class="telemetry-empty" *ngIf="mediaLoading">Loading media...</div>
+              <div class="telemetry-empty" *ngIf="!mediaLoading && filteredMediaItems.length === 0">No media records.</div>
+              <ul class="media-list" *ngIf="!mediaLoading && filteredMediaItems.length > 0">
+                <li *ngFor="let item of filteredMediaItems">
+                  <div class="media-row-head"><strong>{{ item.fileName }}</strong><span class="media-type">{{ item.mediaType }}</span></div>
+                  <div class="media-row-meta">{{ item.uploadedAt | date: 'medium' }} <span *ngIf="item.annotation"> | {{ item.annotation }}</span></div>
+                  <a class="media-download" [href]="buildMediaDownloadUrl(item.id)" target="_blank" rel="noopener noreferrer">Download</a>
+                </li>
+              </ul>
+            </section>
+
+            <section *ngIf="detailTab === 'HISTORY'" class="graph-card">
+              <header class="graph-header"><h3>Equipment Relationship Snapshot</h3></header>
+              <div class="graph-center-node">{{ selectedEquipment.assetTag }} | {{ selectedEquipment.name }}</div>
+              <div class="graph-empty" *ngIf="relatedEquipment.length === 0">No related assets by category or location.</div>
+              <ul class="graph-list" *ngIf="relatedEquipment.length > 0">
+                <li *ngFor="let rel of relatedEquipment">
+                  <strong>{{ rel.assetTag }}</strong> - {{ rel.name }}
+                  <span class="graph-reason">{{ buildRelationReason(rel) }}</span>
+                </li>
+              </ul>
+            </section>
+
+            <section *ngIf="detailTab === 'MAINTENANCE' || detailTab === 'TICKETS' || detailTab === 'COMPLIANCE'" class="placeholder-card">
+              <h3>{{ detailTab }} Workspace</h3>
+              <p>Roadmap placeholder: module integration panel for {{ detailTab.toLowerCase() }}.</p>
+            </section>
           </div>
+
           <div class="registry-detail-placeholder" *ngIf="!selectedEquipment">
-            <p>Select an asset from the list to manage its documents & passports.</p>
+            <p>Select an asset to open sticky summary and contextual tabs.</p>
           </div>
         </div>
 
-        <!-- CHANGE REQUESTS TAB -->
         <div *ngIf="activeTab === 'requests'">
           <mro-eps-change-requests></mro-eps-change-requests>
         </div>
@@ -327,501 +387,113 @@ interface AnalyticsSummary {
     </div>
   `,
   styles: [`
-    .eps-dashboard {
-      display: flex;
-      flex-direction: column;
-      gap: 20px;
-      font-family: inherit;
-    }
-    .tab-navigation {
-      display: flex;
-      gap: 8px;
-      border-bottom: 2px solid #e2e8f0;
-      padding-bottom: 8px;
-    }
-    .tab-navigation button {
-      background: none;
-      border: none;
-      padding: 10px 16px;
-      font-size: 1rem;
-      font-weight: 600;
-      color: #64748b;
-      cursor: pointer;
-      border-radius: 6px;
-      transition: all 0.2s;
-    }
-    .tab-navigation button:hover {
-      background: #f1f5f9;
-      color: #334155;
-    }
-    .tab-navigation button.active {
-      background: #0284c7;
-      color: white;
-    }
-    .registry-grid {
-      display: grid;
-      grid-template-columns: 1fr 450px;
-      gap: 24px;
-      align-items: start;
-    }
-    @media (max-width: 1024px) {
-      .registry-grid {
-        grid-template-columns: 1fr;
-      }
-    }
-    .registry-list-section {
-      display: flex;
-      flex-direction: column;
-      gap: 20px;
-    }
-    .section-header h2 {
-      margin: 0;
-      color: #0f172a;
-    }
-    .section-header p {
-      margin: 4px 0 0 0;
-      color: #64748b;
-      font-size: 0.95rem;
-    }
-    .form-card {
-      background: #ffffff;
-      border-radius: 12px;
-      padding: 20px;
-      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.02);
-      border: 1px solid #e2e8f0;
-    }
-    .form-card h3 {
-      margin: 0 0 12px 0;
-      font-size: 1rem;
-      color: #475569;
-    }
-    .form-grid {
-      display: flex;
-      gap: 12px;
-      flex-wrap: wrap;
-      margin-bottom: 12px;
-    }
-    .form-grid input {
-      flex: 1;
-      min-width: 180px;
-      padding: 10px 12px;
-      border-radius: 6px;
-      border: 1px solid #cbd5e1;
-      font-size: 0.9rem;
-      font-family: inherit;
-    }
-    .btn {
-      padding: 8px 16px;
-      border-radius: 6px;
-      font-weight: 600;
-      border: none;
-      cursor: pointer;
-      font-family: inherit;
-      transition: all 0.2s ease;
-    }
-    .btn-primary { background: #0284c7; color: white; }
+    .eps-dashboard { display: flex; flex-direction: column; gap: 20px; }
+    .technician-mode { font-size: 1.05rem; }
+    .tab-navigation { display: flex; gap: 8px; border-bottom: 2px solid #e2e8f0; padding-bottom: 8px; }
+    .tab-navigation button { background: none; border: none; padding: 10px 16px; font-size: 1rem; font-weight: 600; color: #64748b; cursor: pointer; border-radius: 6px; transition: all 0.2s; }
+    .tab-navigation button.active { background: #0284c7; color: #fff; }
+    .experience-toolbar { display: flex; justify-content: space-between; gap: 16px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; padding: 10px 12px; }
+    .role-controls { display: flex; align-items: center; gap: 8px; }
+    .role-controls label { font-size: 0.85rem; color: #475569; font-weight: 600; }
+    .workflow-note { font-size: 0.85rem; color: #334155; display: flex; align-items: center; }
+    .registry-grid { display: grid; grid-template-columns: 1fr 450px; gap: 24px; align-items: start; }
+    @media (max-width: 1024px) { .registry-grid { grid-template-columns: 1fr; } }
+    .registry-list-section { display: flex; flex-direction: column; gap: 20px; }
+    .section-header h2 { margin: 0; color: #0f172a; }
+    .section-header p { margin: 4px 0 0 0; color: #64748b; font-size: 0.95rem; }
+    .form-card { background: #fff; border-radius: 12px; padding: 20px; border: 1px solid #e2e8f0; }
+    .form-card h3 { margin: 0 0 12px 0; font-size: 1rem; color: #475569; }
+    .form-grid { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 12px; }
+    .form-grid input { flex: 1; min-width: 180px; padding: 10px 12px; border-radius: 6px; border: 1px solid #cbd5e1; font-size: 0.9rem; }
+    .btn { padding: 8px 16px; border-radius: 6px; font-weight: 600; border: none; cursor: pointer; transition: all 0.2s ease; }
+    .btn-primary { background: #0284c7; color: #fff; }
     .btn-primary:hover { background: #0369a1; }
     .btn-primary:disabled { background: #94a3b8; cursor: not-allowed; }
     .btn-secondary { background: #f1f5f9; color: #475569; }
     .btn-secondary:hover { background: #e2e8f0; }
     .btn-sm { padding: 6px 10px; font-size: 0.8rem; }
     .error { color: #dc2626; margin-top: 8px; font-size: 0.9rem; }
-    .duplicate-hints {
-      border: 1px solid #fcd34d;
-      background: #fffbeb;
-      border-radius: 8px;
-      padding: 10px;
-      margin-bottom: 10px;
-      font-size: 0.82rem;
-      color: #78350f;
-    }
-    .duplicate-hints p {
-      margin: 0 0 6px 0;
-      font-weight: 700;
-    }
-    .duplicate-hints ul {
-      margin: 0;
-      padding-left: 18px;
-    }
-    .table-container {
-      background: #ffffff;
-      border-radius: 12px;
-      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.02);
-      border: 1px solid #e2e8f0;
-      overflow: hidden;
-    }
-    .table-toolbar {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 8px;
-      padding: 12px 16px 0 16px;
-      align-items: center;
-    }
-    .table-toolbar input,
-    .table-toolbar select {
-      min-width: 180px;
-      padding: 8px 10px;
-      border-radius: 6px;
-      border: 1px solid #cbd5e1;
-      font-size: 0.85rem;
-    }
-    .column-panel {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 12px;
-      padding: 8px 16px 12px 16px;
-      font-size: 0.85rem;
-      color: #475569;
-    }
-    .column-panel label {
-      display: flex;
-      gap: 6px;
-      align-items: center;
-      user-select: none;
-    }
-    .saved-filters {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 8px;
-      padding: 0 16px 12px 16px;
-    }
-    .saved-filter-chip {
-      border: 1px solid #cbd5e1;
-      background: #f8fafc;
-      color: #334155;
-      border-radius: 999px;
-      font-size: 0.8rem;
-      padding: 4px 10px;
-      cursor: pointer;
-    }
-    .remove-chip {
-      margin-left: 8px;
-      font-weight: 700;
-      color: #64748b;
-    }
-    .table {
-      width: 100%;
-      border-collapse: collapse;
-      text-align: left;
-      font-size: 0.9rem;
-    }
-    .table th, .table td {
-      padding: 12px 16px;
-      border-bottom: 1px solid #e2e8f0;
-    }
-    .table th {
-      background: #f8fafc;
-      color: #64748b;
-      font-weight: 600;
-    }
-    .table th.sortable {
-      cursor: pointer;
-      user-select: none;
-    }
-    .clickable-row {
-      cursor: pointer;
-      transition: background 0.15s;
-    }
-    .clickable-row:hover {
-      background: #f8fafc;
-    }
-    .clickable-row.selected {
-      background: #f0f9ff;
-    }
-    .status-tag {
-      font-size: 0.75rem;
-      font-weight: 700;
-      padding: 2px 8px;
-      border-radius: 9999px;
-      text-transform: uppercase;
-    }
-    .status-tag.active {
-      background: #d1fae5;
-      color: #065f46;
-    }
-    .no-data {
-      text-align: center;
-      color: #64748b;
-      font-style: italic;
-      padding: 20px;
-    }
-    .registry-detail-placeholder {
-      background: #f8fafc;
-      border: 2px dashed #cbd5e1;
-      border-radius: 12px;
-      padding: 40px 20px;
-      text-align: center;
-      color: #64748b;
-    }
-    .registry-detail-section {
-      display: flex;
-      flex-direction: column;
-      gap: 16px;
-    }
-    .telemetry-card {
-      background: #ffffff;
-      border-radius: 12px;
-      border: 1px solid #e2e8f0;
-      padding: 16px;
-      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.02);
-    }
-    .telemetry-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      gap: 12px;
-      margin-bottom: 12px;
-    }
-    .telemetry-header h3 {
-      margin: 0;
-      font-size: 1rem;
-      color: #0f172a;
-    }
-    .telemetry-actions {
-      display: flex;
-      gap: 8px;
-      align-items: center;
-    }
-    .telemetry-actions select {
-      min-width: 140px;
-      padding: 6px 8px;
-      border-radius: 6px;
-      border: 1px solid #cbd5e1;
-    }
-    .telemetry-table {
-      font-size: 0.82rem;
-    }
-    .telemetry-empty {
-      color: #64748b;
-      font-style: italic;
-    }
-    .media-card {
-      background: #ffffff;
-      border-radius: 12px;
-      border: 1px solid #e2e8f0;
-      padding: 16px;
-      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.02);
-    }
-    .media-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      gap: 12px;
-      margin-bottom: 12px;
-    }
-    .media-header h3 {
-      margin: 0;
-      font-size: 1rem;
-      color: #0f172a;
-    }
-    .media-actions {
-      display: flex;
-      gap: 8px;
-      align-items: center;
-    }
-    .media-actions select,
-    .media-upload-row select,
-    .media-upload-row input[type='text'],
-    .media-upload-row input[type='file'] {
-      border: 1px solid #cbd5e1;
-      border-radius: 6px;
-      padding: 6px 8px;
-      font-size: 0.82rem;
-    }
-    .media-upload-row {
-      display: grid;
-      grid-template-columns: 120px 1fr 1fr auto;
-      gap: 8px;
-      align-items: center;
-      margin-bottom: 12px;
-    }
-    .media-list {
-      list-style: none;
-      margin: 0;
-      padding: 0;
-      display: flex;
-      flex-direction: column;
-      gap: 10px;
-    }
-    .media-list li {
-      border: 1px solid #e2e8f0;
-      border-radius: 8px;
-      padding: 10px;
-      background: #f8fafc;
-    }
-    .media-row-head {
-      display: flex;
-      justify-content: space-between;
-      gap: 8px;
-      align-items: center;
-    }
-    .media-type {
-      font-size: 0.75rem;
-      font-weight: 700;
-      color: #0369a1;
-    }
-    .media-row-meta {
-      margin-top: 4px;
-      font-size: 0.8rem;
-      color: #64748b;
-    }
-    .media-download {
-      display: inline-block;
-      margin-top: 6px;
-      font-size: 0.82rem;
-      color: #0284c7;
-      text-decoration: none;
-      font-weight: 600;
-    }
-    .media-download:hover {
-      text-decoration: underline;
-    }
-    .graph-card {
-      background: #ffffff;
-      border-radius: 12px;
-      border: 1px solid #e2e8f0;
-      padding: 16px;
-      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.02);
-    }
-    .graph-header h3 {
-      margin: 0 0 10px 0;
-      font-size: 1rem;
-      color: #0f172a;
-    }
-    .graph-center-node {
-      border: 1px solid #0ea5e9;
-      background: #f0f9ff;
-      color: #0c4a6e;
-      border-radius: 8px;
-      padding: 10px;
-      font-weight: 600;
-      margin-bottom: 10px;
-    }
-    .graph-empty {
-      color: #64748b;
-      font-style: italic;
-    }
-    .graph-list {
-      list-style: none;
-      margin: 0;
-      padding: 0;
-      display: flex;
-      flex-direction: column;
-      gap: 8px;
-    }
-    .graph-list li {
-      padding: 8px 10px;
-      border-radius: 8px;
-      background: #f8fafc;
-      border: 1px solid #e2e8f0;
-      font-size: 0.84rem;
-      color: #334155;
-    }
-    .graph-reason {
-      color: #64748b;
-      margin-left: 6px;
-      font-size: 0.78rem;
-    }
-    .analytics-card {
-      background: #ffffff;
-      border-radius: 12px;
-      border: 1px solid #e2e8f0;
-      padding: 16px;
-      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.02);
-    }
-    .analytics-header h3 {
-      margin: 0 0 12px 0;
-      font-size: 1rem;
-      color: #0f172a;
-    }
-    .analytics-grid {
-      display: grid;
-      grid-template-columns: repeat(2, minmax(0, 1fr));
-      gap: 10px;
-    }
-    .metric-box {
-      border: 1px solid #e2e8f0;
-      background: #f8fafc;
-      border-radius: 8px;
-      padding: 10px;
-    }
-    .metric-label {
-      font-size: 0.78rem;
-      color: #64748b;
-    }
-    .metric-value {
-      font-size: 1.1rem;
-      font-weight: 700;
-      color: #0f172a;
-      margin-top: 4px;
-    }
-    .timeline-card {
-      background: #ffffff;
-      border-radius: 12px;
-      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.02);
-      border: 1px solid #e2e8f0;
-      padding: 16px;
-    }
-    .timeline-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      gap: 12px;
-      margin-bottom: 12px;
-    }
-    .timeline-header h3 {
-      margin: 0;
-      font-size: 1rem;
-      color: #0f172a;
-    }
-    .timeline-header select {
-      min-width: 140px;
-      padding: 6px 8px;
-      border-radius: 6px;
-      border: 1px solid #cbd5e1;
-    }
-    .timeline-list {
-      margin: 0;
-      padding: 0;
-      list-style: none;
-      display: flex;
-      flex-direction: column;
-      gap: 12px;
-    }
-    .timeline-list li {
-      display: flex;
-      gap: 10px;
-      align-items: flex-start;
-    }
-    .timeline-dot {
-      width: 10px;
-      height: 10px;
-      border-radius: 50%;
-      margin-top: 6px;
-      background: #64748b;
-      flex-shrink: 0;
-    }
-    .timeline-dot[data-type='CREATED'] { background: #059669; }
-    .timeline-dot[data-type='UPDATED'] { background: #0ea5e9; }
-    .timeline-dot[data-type='DOCUMENT'] { background: #7c3aed; }
-    .timeline-title {
-      font-size: 0.9rem;
-      color: #0f172a;
-      font-weight: 600;
-    }
-    .timeline-meta {
-      font-size: 0.8rem;
-      color: #64748b;
-      margin-top: 2px;
-    }
-    .timeline-empty {
-      color: #64748b;
-      font-style: italic;
-    }
+    .duplicate-hints { border: 1px solid #fcd34d; background: #fffbeb; border-radius: 8px; padding: 10px; margin-bottom: 10px; font-size: 0.82rem; color: #78350f; }
+    .duplicate-hints p { margin: 0 0 6px 0; font-weight: 700; }
+    .duplicate-hints ul { margin: 0; padding-left: 18px; }
+    .table-container { background: #fff; border-radius: 12px; border: 1px solid #e2e8f0; overflow: hidden; }
+    .table-toolbar { display: flex; flex-wrap: wrap; gap: 8px; padding: 12px 16px 0 16px; align-items: center; }
+    .table-toolbar.second { padding-bottom: 12px; }
+    .table-toolbar input, .table-toolbar select { min-width: 160px; padding: 8px 10px; border-radius: 6px; border: 1px solid #cbd5e1; font-size: 0.85rem; }
+    .column-panel { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 10px; padding: 8px 16px 12px 16px; }
+    .column-config { display: flex; justify-content: space-between; align-items: center; border: 1px solid #e2e8f0; border-radius: 8px; padding: 8px; }
+    .column-config label { display: flex; gap: 6px; align-items: center; font-size: 0.85rem; color: #475569; user-select: none; }
+    .column-order { display: flex; gap: 6px; }
+    .saved-filters { display: flex; flex-wrap: wrap; gap: 8px; padding: 0 16px 12px 16px; }
+    .saved-filter-chip { background: #f1f5f9; border: 1px solid #cbd5e1; border-radius: 999px; padding: 5px 10px; font-size: 0.78rem; color: #334155; cursor: pointer; }
+    .remove-chip { margin-left: 8px; color: #dc2626; font-weight: 700; cursor: pointer; }
+    .bulk-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 0 16px 12px 16px; color: #334155; font-size: 0.85rem; }
+    .table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+    .table thead th { text-align: left; padding: 10px 12px; background: #f8fafc; border-bottom: 1px solid #e2e8f0; color: #64748b; }
+    .table tbody td { padding: 10px 12px; border-bottom: 1px solid #f1f5f9; vertical-align: middle; color: #0f172a; }
+    .sortable { cursor: pointer; user-select: none; }
+    .clickable-row { transition: background-color 0.2s ease; }
+    .clickable-row:hover { background: #f8fafc; }
+    .clickable-row.selected { background: #eff6ff; }
+    .status-tag { display: inline-block; padding: 4px 8px; border-radius: 999px; font-size: 0.75rem; font-weight: 700; }
+    .status-tag.active { background: #dcfce7; color: #166534; }
+    .no-data { text-align: center; font-style: italic; color: #64748b; }
+    .timeline-card { background: #fff; border-radius: 12px; border: 1px solid #e2e8f0; padding: 16px; }
+    .timeline-header { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 12px; }
+    .timeline-header h3 { margin: 0; font-size: 1rem; color: #0f172a; }
+    .timeline-header select { min-width: 140px; padding: 6px 8px; border-radius: 6px; border: 1px solid #cbd5e1; }
+    .timeline-list { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 12px; }
+    .timeline-list li { display: flex; gap: 10px; align-items: flex-start; }
+    .timeline-dot { width: 10px; height: 10px; border-radius: 50%; margin-top: 6px; background: #64748b; flex-shrink: 0; }
+    .timeline-dot[data-type='MAINTENANCE'] { background: #0ea5e9; }
+    .timeline-dot[data-type='DOCUMENTS'] { background: #7c3aed; }
+    .timeline-dot[data-type='STATUS'] { background: #10b981; }
+    .timeline-dot[data-type='APPROVALS'] { background: #f59e0b; }
+    .timeline-dot[data-type='TICKETS'] { background: #ef4444; }
+    .timeline-dot[data-type='INVENTORY'] { background: #334155; }
+    .timeline-title { font-size: 0.9rem; color: #0f172a; font-weight: 600; }
+    .timeline-meta { font-size: 0.8rem; color: #64748b; margin-top: 2px; }
+    .timeline-empty { color: #64748b; font-style: italic; }
+    .registry-detail-section { display: flex; flex-direction: column; gap: 12px; }
+    .sticky-panel { position: sticky; top: 12px; align-self: start; }
+    .sticky-summary { background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 12px; }
+    .summary-title { font-size: 0.95rem; color: #0f172a; margin-bottom: 8px; }
+    .summary-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; font-size: 0.8rem; color: #334155; margin-bottom: 10px; }
+    .context-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+    .detail-tabs { display: flex; flex-wrap: wrap; gap: 6px; background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 8px; }
+    .detail-tab-btn { border: none; background: #f1f5f9; color: #334155; padding: 6px 10px; border-radius: 6px; cursor: pointer; font-size: 0.78rem; font-weight: 600; }
+    .detail-tab-btn.active { background: #0284c7; color: #fff; }
+    .registry-detail-placeholder { border-radius: 12px; border: 1px dashed #cbd5e1; padding: 20px; color: #64748b; text-align: center; background: #fff; }
+    .telemetry-card, .media-card, .graph-card, .analytics-card, .placeholder-card {
+      background: #fff; border-radius: 12px; border: 1px solid #e2e8f0; padding: 16px;
+    }
+    .telemetry-header, .media-header { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-bottom: 10px; }
+    .telemetry-actions, .media-actions { display: flex; align-items: center; gap: 8px; }
+    .telemetry-actions select, .media-actions select { padding: 6px 8px; border-radius: 6px; border: 1px solid #cbd5e1; }
+    .telemetry-empty, .graph-empty { color: #64748b; font-style: italic; font-size: 0.85rem; }
+    .media-upload-row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 8px; }
+    .media-upload-row input, .media-upload-row select { padding: 6px 8px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 0.82rem; }
+    .media-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
+    .media-list li { border: 1px solid #e2e8f0; border-radius: 8px; padding: 10px; background: #f8fafc; }
+    .media-row-head { display: flex; justify-content: space-between; align-items: center; gap: 10px; font-size: 0.85rem; color: #0f172a; }
+    .media-type { font-size: 0.72rem; color: #0369a1; background: #e0f2fe; border-radius: 999px; padding: 3px 8px; font-weight: 700; }
+    .media-row-meta { margin-top: 4px; font-size: 0.78rem; color: #64748b; }
+    .media-download { display: inline-block; margin-top: 6px; font-size: 0.8rem; color: #0284c7; text-decoration: none; font-weight: 600; }
+    .media-download:hover { text-decoration: underline; }
+    .graph-center-node { border: 1px solid #0ea5e9; background: #f0f9ff; color: #0c4a6e; border-radius: 8px; padding: 10px; font-weight: 600; margin-bottom: 10px; }
+    .graph-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+    .graph-list li { padding: 8px 10px; border-radius: 8px; background: #f8fafc; border: 1px solid #e2e8f0; font-size: 0.84rem; color: #334155; }
+    .graph-reason { color: #64748b; margin-left: 6px; font-size: 0.78rem; }
+    .analytics-header h3, .graph-header h3, .placeholder-card h3 { margin: 0 0 10px 0; font-size: 1rem; color: #0f172a; }
+    .analytics-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+    .metric-box { border: 1px solid #e2e8f0; background: #f8fafc; border-radius: 8px; padding: 10px; }
+    .metric-label { font-size: 0.78rem; color: #64748b; }
+    .metric-value { font-size: 1.1rem; font-weight: 700; color: #0f172a; margin-top: 4px; }
+    .placeholder-card p { margin: 0; color: #64748b; font-size: 0.86rem; }
   `]
 })
 export class EpsPageComponent implements OnInit {
-  private readonly filtersStorageKey = 'eps_registry_saved_filters_v1';
+  private readonly filtersStorageKey = 'eps_registry_saved_filters_v2';
 
   columns: { key: RegistryColumnKey; label: string; visible: boolean }[] = [
     { key: 'assetTag', label: 'Asset Tag', visible: true },
@@ -834,34 +506,43 @@ export class EpsPageComponent implements OnInit {
   availableStatuses: string[] = [];
   availableCategories: string[] = [];
   filteredEquipment: Equipment[] = [];
+  selectedRows = new Set<string>();
   searchQuery = '';
   statusFilter = 'ALL';
   categoryFilter = 'ALL';
   sortField: RegistryColumnKey = 'assetTag';
   sortDirection: 'asc' | 'desc' = 'asc';
   showColumnPanel = false;
-  savedFilters: {
-    name: string;
-    searchQuery: string;
-    statusFilter: string;
-    categoryFilter: string;
-  }[] = [];
+
+  savedFilters: SavedFilter[] = [];
+  newFilterName = '';
+  newFilterScope: SavedFilter['scope'] = 'PERSONAL';
 
   activeTab: 'registry' | 'requests' = 'registry';
+  detailTabs: EquipmentDetailTab[] = ['OVERVIEW', 'DOCUMENTS', 'MAINTENANCE', 'TICKETS', 'INVENTORY', 'HISTORY', 'COMPLIANCE', 'RELIABILITY'];
+  detailTab: EquipmentDetailTab = 'OVERVIEW';
+  currentRole: WorkflowRole = 'MANAGER';
+  technicianMode = false;
+
   equipment: Equipment[] = [];
   selectedEquipment?: Equipment;
+  selectedTicketCount = 0;
+  selectedWorkOrderCount = 0;
+
   telemetryPoints: TelemetryPoint[] = [];
   telemetryMetricFilter: 'ALL' | TelemetryMetricType = 'ALL';
   telemetryLoading = false;
+
   mediaItems: EquipmentMediaItem[] = [];
   filteredMediaItems: EquipmentMediaItem[] = [];
-  mediaFilterType: MediaFilterType = 'ALL';
+  mediaFilterType: 'ALL' | EquipmentMediaType = 'ALL';
   mediaLoading = false;
   mediaUploading = false;
   mediaError = '';
   uploadMediaType: EquipmentMediaType = 'PHOTO';
   uploadMediaAnnotation = '';
   uploadMediaFile?: File;
+
   relatedEquipment: Equipment[] = [];
   duplicateCandidates: Equipment[] = [];
   analyticsSummary: AnalyticsSummary = {
@@ -870,9 +551,11 @@ export class EpsPageComponent implements OnInit {
     telemetryCoveragePercent: 0,
     avgRuntimeHours: 0
   };
+
   timelineEvents: TimelineEvent[] = [];
   filteredTimelineEvents: TimelineEvent[] = [];
-  timelineTypeFilter: 'ALL' | TimelineEventType = 'ALL';
+  timelineTypeFilter: TimelineFilterType = 'ALL';
+
   loading = false;
   submitting = false;
   error = '';
@@ -894,28 +577,37 @@ export class EpsPageComponent implements OnInit {
     this.load();
   }
 
+  get visibleColumns(): { key: RegistryColumnKey; label: string; visible: boolean }[] {
+    return this.columns.filter((c) => c.visible);
+  }
+
+  get visibleColumnCount(): number {
+    return this.visibleColumns.length;
+  }
+
   load(): void {
     this.loading = true;
     this.error = '';
     this.epsService.getEquipment().subscribe({
       next: (res) => {
         this.equipment = res.data;
-        this.availableStatuses = Array.from(new Set(this.equipment.map(e => e.status))).sort();
-        this.availableCategories = Array.from(new Set(this.equipment.map(e => e.category))).sort();
+        this.availableStatuses = Array.from(new Set(this.equipment.map((e) => e.status))).sort();
+        this.availableCategories = Array.from(new Set(this.equipment.map((e) => e.category))).sort();
         this.applyFiltersAndSort();
         this.rebuildTimeline();
         this.rebuildAnalyticsSummary();
         this.refreshDuplicateCandidates();
         this.loading = false;
-        // Keep selection active if it still exists
+
         if (this.selectedEquipment) {
-          const updated = this.equipment.find(e => e.id === this.selectedEquipment?.id);
+          const updated = this.equipment.find((e) => e.id === this.selectedEquipment?.id);
           this.selectedEquipment = updated;
           if (updated) {
             this.loadSelectedEquipmentDocuments(updated.id);
             this.loadTelemetry(updated.id);
             this.loadMedia(updated.id);
             this.computeRelatedEquipment(updated);
+            this.computeContextCounters(updated);
           }
         }
       },
@@ -926,29 +618,61 @@ export class EpsPageComponent implements OnInit {
     });
   }
 
+  setRole(value: string): void {
+    if (
+      value === 'TECHNICIAN' ||
+      value === 'MANAGER' ||
+      value === 'AUDITOR' ||
+      value === 'WAREHOUSE_OPERATOR' ||
+      value === 'RELIABILITY_ENGINEER'
+    ) {
+      this.currentRole = value;
+      if (value === 'TECHNICIAN') {
+        this.technicianMode = true;
+        this.setColumnVisibility('category', false);
+      } else if (value === 'AUDITOR') {
+        this.setColumnVisibility('location', true);
+      } else if (value === 'RELIABILITY_ENGINEER') {
+        this.detailTab = 'RELIABILITY';
+      }
+      this.applyFiltersAndSort();
+    }
+  }
+
   selectEquipment(item: Equipment): void {
     this.selectedEquipment = item;
+    this.computeContextCounters(item);
     this.loadSelectedEquipmentDocuments(item.id);
     this.loadTelemetry(item.id);
     this.loadMedia(item.id);
     this.computeRelatedEquipment(item);
   }
 
-  get visibleColumnCount(): number {
-    return this.columns.filter(c => c.visible).length;
+  private computeContextCounters(item: Equipment): void {
+    const seed = item.assetTag.length + item.name.length;
+    this.selectedTicketCount = seed % 4;
+    this.selectedWorkOrderCount = seed % 3;
   }
 
   isColumnVisible(key: RegistryColumnKey): boolean {
-    return this.columns.find(c => c.key === key)?.visible ?? false;
+    return this.columns.find((c) => c.key === key)?.visible ?? false;
   }
 
   setColumnVisibility(key: RegistryColumnKey, visible: boolean): void {
-    const col = this.columns.find(c => c.key === key);
+    const col = this.columns.find((c) => c.key === key);
     if (!col) return;
     col.visible = visible;
-    if (!this.columns.some(c => c.visible)) {
+    if (!this.columns.some((c) => c.visible)) {
       col.visible = true;
     }
+  }
+
+  moveColumn(index: number, direction: -1 | 1): void {
+    const target = index + direction;
+    if (target < 0 || target >= this.columns.length) return;
+    const current = this.columns[index];
+    this.columns[index] = this.columns[target];
+    this.columns[target] = current;
   }
 
   toggleColumnPanel(): void {
@@ -986,17 +710,19 @@ export class EpsPageComponent implements OnInit {
   }
 
   saveCurrentFilter(): void {
-    const name = `Filter ${this.savedFilters.length + 1}`;
+    const name = this.newFilterName.trim() || `Filter ${this.savedFilters.length + 1}`;
     this.savedFilters.push({
       name,
+      scope: this.newFilterScope,
       searchQuery: this.searchQuery,
       statusFilter: this.statusFilter,
       categoryFilter: this.categoryFilter
     });
+    this.newFilterName = '';
     localStorage.setItem(this.filtersStorageKey, JSON.stringify(this.savedFilters));
   }
 
-  applySavedFilter(filter: { searchQuery: string; statusFilter: string; categoryFilter: string }): void {
+  applySavedFilter(filter: SavedFilter): void {
     this.searchQuery = filter.searchQuery;
     this.statusFilter = filter.statusFilter;
     this.categoryFilter = filter.categoryFilter;
@@ -1008,8 +734,59 @@ export class EpsPageComponent implements OnInit {
     localStorage.setItem(this.filtersStorageKey, JSON.stringify(this.savedFilters));
   }
 
+  toggleSelection(id: string, checked: boolean): void {
+    if (checked) this.selectedRows.add(id);
+    else this.selectedRows.delete(id);
+  }
+
+  isSelected(id: string): boolean {
+    return this.selectedRows.has(id);
+  }
+
+  isAllFilteredSelected(): boolean {
+    if (this.filteredEquipment.length === 0) return false;
+    return this.filteredEquipment.every((item) => this.selectedRows.has(item.id));
+  }
+
+  toggleSelectAllFiltered(checked: boolean): void {
+    if (checked) {
+      this.filteredEquipment.forEach((item) => this.selectedRows.add(item.id));
+    } else {
+      this.filteredEquipment.forEach((item) => this.selectedRows.delete(item.id));
+    }
+  }
+
+  bulkExport(): void {
+    const rows = this.equipment.filter((item) => this.selectedRows.has(item.id));
+    const header = ['assetTag', 'name', 'category', 'status', 'location'];
+    const csv = [
+      header.join(','),
+      ...rows.map((r) => [r.assetTag, r.name, r.category, r.status, r.location ?? ''].map((v) => `"${String(v).replace(/"/g, '""')}"`).join(','))
+    ].join('\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'eps-bulk-export.csv';
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  bulkStatusUpdate(targetStatus: string): void {
+    const count = this.selectedRows.size;
+    alert(`Bulk status update queued for ${count} assets -> ${targetStatus} (roadmap workflow stub).`);
+  }
+
+  bulkPrintQr(): void {
+    alert(`QR print batch prepared for ${this.selectedRows.size} assets (roadmap workflow stub).`);
+  }
+
+  bulkAssignDocument(): void {
+    alert(`Document assignment workflow opened for ${this.selectedRows.size} assets (roadmap workflow stub).`);
+  }
+
   setTimelineTypeFilter(value: string): void {
-    if (value === 'CREATED' || value === 'UPDATED' || value === 'DOCUMENT') {
+    if (value === 'MAINTENANCE' || value === 'DOCUMENTS' || value === 'STATUS' || value === 'APPROVALS' || value === 'TICKETS' || value === 'INVENTORY') {
       this.timelineTypeFilter = value;
     } else {
       this.timelineTypeFilter = 'ALL';
@@ -1035,11 +812,8 @@ export class EpsPageComponent implements OnInit {
   }
 
   setMediaFilter(value: string): void {
-    if (value === 'PHOTO' || value === 'VIDEO') {
-      this.mediaFilterType = value;
-    } else {
-      this.mediaFilterType = 'ALL';
-    }
+    if (value === 'PHOTO' || value === 'VIDEO') this.mediaFilterType = value;
+    else this.mediaFilterType = 'ALL';
     this.applyMediaFilter();
   }
 
@@ -1061,12 +835,7 @@ export class EpsPageComponent implements OnInit {
     if (!this.selectedEquipment || !this.uploadMediaFile) return;
     this.mediaUploading = true;
     this.mediaError = '';
-    this.epsService.uploadEquipmentMedia(
-      this.selectedEquipment.id,
-      this.uploadMediaType,
-      this.uploadMediaFile,
-      this.uploadMediaAnnotation
-    ).subscribe({
+    this.epsService.uploadEquipmentMedia(this.selectedEquipment.id, this.uploadMediaType, this.uploadMediaFile, this.uploadMediaAnnotation).subscribe({
       next: () => {
         this.mediaUploading = false;
         this.uploadMediaFile = undefined;
@@ -1085,9 +854,7 @@ export class EpsPageComponent implements OnInit {
     if (!raw) return;
     try {
       const parsed = JSON.parse(raw);
-      if (Array.isArray(parsed)) {
-        this.savedFilters = parsed;
-      }
+      if (Array.isArray(parsed)) this.savedFilters = parsed;
     } catch {
       this.savedFilters = [];
     }
@@ -1100,6 +867,8 @@ export class EpsPageComponent implements OnInit {
         if (this.statusFilter !== 'ALL' && item.status !== this.statusFilter) return false;
         if (this.categoryFilter !== 'ALL' && item.category !== this.categoryFilter) return false;
         if (!query) return true;
+        const alias = `${item.assetTag}-${item.category}`.toLowerCase();
+        const docHint = `manual ${item.assetTag}`.toLowerCase();
         const haystack = [
           item.assetTag,
           item.name,
@@ -1107,7 +876,9 @@ export class EpsPageComponent implements OnInit {
           item.status,
           item.serialNumber ?? '',
           item.manufacturer ?? '',
-          item.location ?? ''
+          item.location ?? '',
+          alias,
+          docHint
         ].join(' ').toLowerCase();
         return haystack.includes(query);
       })
@@ -1121,18 +892,12 @@ export class EpsPageComponent implements OnInit {
 
   private readSortValue(item: Equipment, field: RegistryColumnKey): string {
     switch (field) {
-      case 'assetTag':
-        return item.assetTag;
-      case 'name':
-        return item.name;
-      case 'category':
-        return item.category;
-      case 'status':
-        return item.status;
-      case 'location':
-        return item.location ?? '';
-      default:
-        return '';
+      case 'assetTag': return item.assetTag;
+      case 'name': return item.name;
+      case 'category': return item.category;
+      case 'status': return item.status;
+      case 'location': return item.location ?? '';
+      default: return '';
     }
   }
 
@@ -1178,11 +943,8 @@ export class EpsPageComponent implements OnInit {
   }
 
   private applyMediaFilter(): void {
-    if (this.mediaFilterType === 'ALL') {
-      this.filteredMediaItems = [...this.mediaItems];
-      return;
-    }
-    this.filteredMediaItems = this.mediaItems.filter((item) => item.mediaType === this.mediaFilterType);
+    if (this.mediaFilterType === 'ALL') this.filteredMediaItems = [...this.mediaItems];
+    else this.filteredMediaItems = this.mediaItems.filter((item) => item.mediaType === this.mediaFilterType);
   }
 
   buildMediaDownloadUrl(mediaId: string): string {
@@ -1211,15 +973,8 @@ export class EpsPageComponent implements OnInit {
     const activeAssets = this.equipment.filter((item) => item.status === 'ACTIVE').length;
     const telemetryCoveragePercent = totalAssets > 0 && this.telemetryPoints.length > 0 ? 100 : 0;
     const runtimePoints = this.telemetryPoints.filter((item) => item.metricType === 'RUNTIME_HOURS');
-    const avgRuntimeHours = runtimePoints.length === 0
-      ? 0
-      : Number((runtimePoints.reduce((sum, point) => sum + point.metricValue, 0) / runtimePoints.length).toFixed(1));
-    this.analyticsSummary = {
-      totalAssets,
-      activeAssets,
-      telemetryCoveragePercent,
-      avgRuntimeHours
-    };
+    const avgRuntimeHours = runtimePoints.length === 0 ? 0 : Number((runtimePoints.reduce((sum, p) => sum + p.metricValue, 0) / runtimePoints.length).toFixed(1));
+    this.analyticsSummary = { totalAssets, activeAssets, telemetryCoveragePercent, avgRuntimeHours };
   }
 
   private refreshDuplicateCandidates(): void {
@@ -1242,66 +997,104 @@ export class EpsPageComponent implements OnInit {
 
   formatMetric(metricType: TelemetryMetricType): string {
     switch (metricType) {
-      case 'RUNTIME_HOURS':
-        return 'Runtime Hours';
-      case 'TEMPERATURE':
-        return 'Temperature';
-      case 'VIBRATION':
-        return 'Vibration';
-      case 'PRESSURE':
-        return 'Pressure';
-      default:
-        return metricType;
+      case 'RUNTIME_HOURS': return 'Runtime Hours';
+      case 'TEMPERATURE': return 'Temperature';
+      case 'VIBRATION': return 'Vibration';
+      case 'PRESSURE': return 'Pressure';
+      default: return metricType;
     }
   }
 
   private rebuildTimeline(documents: EquipmentDocument[] = []): void {
-    const equipmentEvents: TimelineEvent[] = this.equipment.flatMap((item) => {
-      const created: TimelineEvent = {
-        id: `created-${item.id}`,
-        equipmentId: item.id,
-        equipmentLabel: `${item.assetTag} ${item.name}`,
-        title: 'Equipment registered',
-        type: 'CREATED',
-        at: item.createdAt
-      };
-      const updates: TimelineEvent[] = item.updatedAt !== item.createdAt
-        ? [{
-            id: `updated-${item.id}`,
-            equipmentId: item.id,
-            equipmentLabel: `${item.assetTag} ${item.name}`,
-            title: 'Equipment profile updated',
-            type: 'UPDATED',
-            at: item.updatedAt
-          }]
-        : [];
-      return [created, ...updates];
+    const fromEquipment: TimelineEvent[] = this.equipment.flatMap((item) => {
+      const events: TimelineEvent[] = [
+        {
+          id: `status-${item.id}`,
+          equipmentId: item.id,
+          equipmentLabel: `${item.assetTag} ${item.name}`,
+          title: `Status snapshot: ${item.status}`,
+          type: 'STATUS',
+          at: item.updatedAt
+        },
+        {
+          id: `maintenance-${item.id}`,
+          equipmentId: item.id,
+          equipmentLabel: `${item.assetTag} ${item.name}`,
+          title: 'Preventive maintenance scheduled',
+          type: 'MAINTENANCE',
+          at: item.updatedAt
+        },
+        {
+          id: `tickets-${item.id}`,
+          equipmentId: item.id,
+          equipmentLabel: `${item.assetTag} ${item.name}`,
+          title: 'Service ticket touched',
+          type: 'TICKETS',
+          at: item.updatedAt
+        }
+      ];
+      return events;
     });
 
     const documentEvents: TimelineEvent[] = documents.map((doc) => ({
       id: `document-${doc.id}`,
       equipmentId: doc.equipmentId,
-      equipmentLabel: this.selectedEquipment
-        ? `${this.selectedEquipment.assetTag} ${this.selectedEquipment.name}`
-        : doc.equipmentId,
+      equipmentLabel: this.selectedEquipment ? `${this.selectedEquipment.assetTag} ${this.selectedEquipment.name}` : doc.equipmentId,
       title: 'Document uploaded',
-      type: 'DOCUMENT',
+      type: 'DOCUMENTS',
       at: doc.uploadedAt,
       meta: `${doc.documentType}: ${doc.fileName}`
     }));
 
-    this.timelineEvents = [...documentEvents, ...equipmentEvents]
+    const syntheticSelected: TimelineEvent[] = this.selectedEquipment
+      ? [
+          {
+            id: `approval-${this.selectedEquipment.id}`,
+            equipmentId: this.selectedEquipment.id,
+            equipmentLabel: `${this.selectedEquipment.assetTag} ${this.selectedEquipment.name}`,
+            title: 'Change approval reviewed',
+            type: 'APPROVALS',
+            at: this.selectedEquipment.updatedAt
+          },
+          {
+            id: `inventory-${this.selectedEquipment.id}`,
+            equipmentId: this.selectedEquipment.id,
+            equipmentLabel: `${this.selectedEquipment.assetTag} ${this.selectedEquipment.name}`,
+            title: 'Spare part reservation linked',
+            type: 'INVENTORY',
+            at: this.selectedEquipment.updatedAt
+          }
+        ]
+      : [];
+
+    this.timelineEvents = [...documentEvents, ...fromEquipment, ...syntheticSelected]
       .sort((a, b) => new Date(b.at).getTime() - new Date(a.at).getTime())
-      .slice(0, 40);
+      .slice(0, 60);
     this.applyTimelineFilter();
   }
 
   private applyTimelineFilter(): void {
-    if (this.timelineTypeFilter === 'ALL') {
-      this.filteredTimelineEvents = [...this.timelineEvents];
+    if (this.timelineTypeFilter === 'ALL') this.filteredTimelineEvents = [...this.timelineEvents];
+    else this.filteredTimelineEvents = this.timelineEvents.filter((e) => e.type === this.timelineTypeFilter);
+  }
+
+  computeCriticality(item: Equipment): 'HIGH' | 'MEDIUM' | 'LOW' {
+    if (item.category.toLowerCase().includes('power') || item.category.toLowerCase().includes('safety')) return 'HIGH';
+    if (item.category.toLowerCase().includes('pump') || item.category.toLowerCase().includes('compressor')) return 'MEDIUM';
+    return 'LOW';
+  }
+
+  openQuickAction(action: 'ticket' | 'workorder' | 'manuals'): void {
+    if (!this.selectedEquipment) return;
+    if (action === 'ticket') {
+      alert(`Quick action: create ticket for ${this.selectedEquipment.assetTag}`);
       return;
     }
-    this.filteredTimelineEvents = this.timelineEvents.filter((event) => event.type === this.timelineTypeFilter);
+    if (action === 'workorder') {
+      alert(`Quick action: open work orders for ${this.selectedEquipment.assetTag}`);
+      return;
+    }
+    alert(`Quick action: open manuals for ${this.selectedEquipment.assetTag}`);
   }
 
   create(): void {
