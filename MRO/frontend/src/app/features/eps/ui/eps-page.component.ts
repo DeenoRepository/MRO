@@ -2587,23 +2587,11 @@ export class EpsPageComponent implements OnInit, OnDestroy {
         this.refreshDuplicateCandidates();
         this.loading = false;
 
-        if (this.selectedEquipment) {
-          const updated = this.equipment.find((e) => e.id === this.selectedEquipment?.id);
-          this.selectedEquipment = updated;
-          if (updated) {
-            this.editForm.patchValue({
-              name: updated.name ?? '',
-              category: updated.category ?? '',
-              location: updated.location ?? '',
-              manufacturer: updated.manufacturer ?? '',
-              model: updated.model ?? '',
-              serialNumber: updated.serialNumber ?? '',
-              installDate: updated.installDate ?? ''
-            });
-            this.loadSelectedEquipmentDocuments(updated.id);
-            this.computeRelatedEquipment(updated);
-            this.computeContextCounters(updated);
-            this.lazyLoadDetailData();
+        const targetId = this.route.snapshot.paramMap.get('id') || this.selectedEquipment?.id;
+        if (targetId) {
+          const found = this.equipment.find((e) => e.id === targetId);
+          if (found) {
+            this.loadSelectedEquipmentDetails(found);
           }
         }
       },
