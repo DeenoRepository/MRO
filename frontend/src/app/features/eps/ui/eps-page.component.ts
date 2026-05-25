@@ -242,7 +242,7 @@ interface EquipmentDraft {
               <table class="table">
                 <thead>
                   <tr>
-                    <th><input type="checkbox" [checked]="isAllFilteredSelected()" (change)="toggleSelectAllFiltered($any($event.target).checked)" /></th>
+                    <th><input type="checkbox" [checked]="isAllVisiblePageSelected()" (change)="toggleSelectAllVisiblePage($any($event.target).checked)" /></th>
                     <th *ngFor="let col of visibleColumns" (click)="sortBy(col.key)" class="sortable">
                       {{ col.label }} {{ sortIndicator(col.key) }}
                     </th>
@@ -251,7 +251,7 @@ interface EquipmentDraft {
                 </thead>
                 <tbody>
                   <tr
-                    *ngFor="let item of filteredEquipment"
+                    *ngFor="let item of paginatedEquipment"
                     [class.selected]="selectedEquipment?.id === item.id"
                     (click)="selectEquipment(item)"
                     class="clickable-row"
@@ -282,6 +282,11 @@ interface EquipmentDraft {
                   </tr>
                 </tbody>
               </table>
+              <div class="pager-row" *ngIf="filteredEquipment.length > pageSize">
+                <button class="btn btn-secondary btn-sm" (click)="prevPage()" [disabled]="currentPage === 1">Prev</button>
+                <span>Page {{ currentPage }} / {{ totalPages }}</span>
+                <button class="btn btn-secondary btn-sm" (click)="nextPage()" [disabled]="currentPage === totalPages">Next</button>
+              </div>
             </div>
 
             <section class="timeline-card">
@@ -333,7 +338,7 @@ interface EquipmentDraft {
             </section>
 
             <section class="detail-tabs">
-              <button *ngFor="let tab of detailTabs" class="detail-tab-btn" [class.active]="detailTab === tab" (click)="detailTab = tab">
+              <button *ngFor="let tab of detailTabs" class="detail-tab-btn" [class.active]="detailTab === tab" (click)="onDetailTabSelect(tab)">
                 {{ tab }}
               </button>
             </section>
@@ -541,6 +546,7 @@ interface EquipmentDraft {
     .table thead th { text-align: left; padding: 10px 12px; background: #f8fafc; border-bottom: 1px solid #e2e8f0; color: #64748b; }
     .table tbody td { padding: 10px 12px; border-bottom: 1px solid #f1f5f9; vertical-align: middle; color: #0f172a; }
     .sortable { cursor: pointer; user-select: none; }
+    .pager-row { display: flex; justify-content: center; align-items: center; gap: 10px; padding: 10px 12px 14px 12px; color: #334155; font-size: .84rem; }
     .clickable-row { transition: background-color 0.2s ease; }
     .clickable-row:hover { background: #f8fafc; }
     .clickable-row.selected { background: #eff6ff; }
@@ -616,6 +622,9 @@ export class EpsPageComponent implements OnInit {
   availableStatuses: string[] = [];
   availableCategories: string[] = [];
   filteredEquipment: Equipment[] = [];
+  paginatedEquipment: Equipment[] = [];
+  pageSize = 20;
+  currentPage = 1;
   selectedRows = new Set<string>();
   searchQuery = '';
   statusFilter = 'ALL';
@@ -655,6 +664,8 @@ export class EpsPageComponent implements OnInit {
   uploadMediaType: EquipmentMediaType = 'PHOTO';
   uploadMediaAnnotation = '';
   uploadMediaFile?: File;
+  telemetryLoadedForEquipmentId?: string;
+  mediaLoadedForEquipmentId?: string;
 
   relatedEquipment: Equipment[] = [];
   duplicateCandidates: Equipment[] = [];
@@ -701,6 +712,10 @@ export class EpsPageComponent implements OnInit {
     return this.visibleColumns.length;
   }
 
+  get totalPages(): number {
+    return Math.max(1, Math.ceil(this.filteredEquipment.length / this.pageSize));
+  }
+
   get visibleWidgets(): DashboardWidget[] {
     return this.widgets.filter((w) => w.roles.includes(this.currentRole));
   }
@@ -725,10 +740,9 @@ export class EpsPageComponent implements OnInit {
           this.selectedEquipment = updated;
           if (updated) {
             this.loadSelectedEquipmentDocuments(updated.id);
-            this.loadTelemetry(updated.id);
-            this.loadMedia(updated.id);
             this.computeRelatedEquipment(updated);
             this.computeContextCounters(updated);
+            this.lazyLoadDetailData();
           }
         }
       },
@@ -754,7 +768,7 @@ export class EpsPageComponent implements OnInit {
       } else if (value === 'AUDITOR') {
         this.setColumnVisibility('location', true);
       } else if (value === 'RELIABILITY_ENGINEER') {
-        this.detailTab = 'RELIABILITY';
+        this.onDetailTabSelect('RELIABILITY');
       }
       this.applyFiltersAndSort();
       this.rebuildWidgets();
@@ -765,9 +779,8 @@ export class EpsPageComponent implements OnInit {
     this.selectedEquipment = item;
     this.computeContextCounters(item);
     this.loadSelectedEquipmentDocuments(item.id);
-    this.loadTelemetry(item.id);
-    this.loadMedia(item.id);
     this.computeRelatedEquipment(item);
+    this.lazyLoadDetailData();
   }
 
   private computeContextCounters(item: Equipment): void {
@@ -870,12 +883,37 @@ export class EpsPageComponent implements OnInit {
     return this.filteredEquipment.every((item) => this.selectedRows.has(item.id));
   }
 
+  isAllVisiblePageSelected(): boolean {
+    if (this.paginatedEquipment.length === 0) return false;
+    return this.paginatedEquipment.every((item) => this.selectedRows.has(item.id));
+  }
+
+  toggleSelectAllVisiblePage(checked: boolean): void {
+    if (checked) {
+      this.paginatedEquipment.forEach((item) => this.selectedRows.add(item.id));
+    } else {
+      this.paginatedEquipment.forEach((item) => this.selectedRows.delete(item.id));
+    }
+  }
+
   toggleSelectAllFiltered(checked: boolean): void {
     if (checked) {
       this.filteredEquipment.forEach((item) => this.selectedRows.add(item.id));
     } else {
       this.filteredEquipment.forEach((item) => this.selectedRows.delete(item.id));
     }
+  }
+
+  nextPage(): void {
+    if (this.currentPage >= this.totalPages) return;
+    this.currentPage += 1;
+    this.applyPagination();
+  }
+
+  prevPage(): void {
+    if (this.currentPage <= 1) return;
+    this.currentPage -= 1;
+    this.applyPagination();
   }
 
   bulkExport(): void {
@@ -928,25 +966,25 @@ export class EpsPageComponent implements OnInit {
     if (!this.scannedEquipment) return;
     if (action === 'OPEN_EQUIPMENT') {
       this.selectEquipment(this.scannedEquipment);
-      this.detailTab = 'OVERVIEW';
+      this.onDetailTabSelect('OVERVIEW');
       return;
     }
     if (action === 'CREATE_TICKET') {
-      this.detailTab = 'TICKETS';
+      this.onDetailTabSelect('TICKETS');
       this.openQuickAction('ticket');
       return;
     }
     if (action === 'OPEN_WORK_ORDER') {
-      this.detailTab = 'MAINTENANCE';
+      this.onDetailTabSelect('MAINTENANCE');
       this.openQuickAction('workorder');
       return;
     }
     if (action === 'UPLOAD_PHOTO') {
-      this.detailTab = 'INVENTORY';
+      this.onDetailTabSelect('INVENTORY');
       alert(`Photo upload workflow opened for ${this.scannedEquipment.assetTag}.`);
       return;
     }
-    this.detailTab = 'DOCUMENTS';
+    this.onDetailTabSelect('DOCUMENTS');
     this.openQuickAction('manuals');
   }
 
@@ -1128,6 +1166,31 @@ export class EpsPageComponent implements OnInit {
         const result = left.localeCompare(right);
         return this.sortDirection === 'asc' ? result : -result;
       });
+    this.currentPage = 1;
+    this.applyPagination();
+  }
+
+  private applyPagination(): void {
+    const start = (this.currentPage - 1) * this.pageSize;
+    this.paginatedEquipment = this.filteredEquipment.slice(start, start + this.pageSize);
+  }
+
+  onDetailTabSelect(tab: EquipmentDetailTab): void {
+    this.detailTab = tab;
+    this.lazyLoadDetailData();
+  }
+
+  private lazyLoadDetailData(): void {
+    if (!this.selectedEquipment) return;
+    if (this.detailTab === 'RELIABILITY' && this.telemetryLoadedForEquipmentId !== this.selectedEquipment.id) {
+      this.loadTelemetry(this.selectedEquipment.id);
+      this.telemetryLoadedForEquipmentId = this.selectedEquipment.id;
+      return;
+    }
+    if (this.detailTab === 'INVENTORY' && this.mediaLoadedForEquipmentId !== this.selectedEquipment.id) {
+      this.loadMedia(this.selectedEquipment.id);
+      this.mediaLoadedForEquipmentId = this.selectedEquipment.id;
+    }
   }
 
   private readSortValue(item: Equipment, field: RegistryColumnKey): string {
