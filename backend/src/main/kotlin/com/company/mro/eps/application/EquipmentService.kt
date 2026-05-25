@@ -54,7 +54,9 @@ class EquipmentService(
             throw ResponseStatusException(HttpStatus.BAD_REQUEST, "limit must be greater than 0")
         }
         val normalizedCategory = category?.trim()?.takeIf { it.isNotEmpty() }
-        val cacheKey = "$OVERVIEW_CACHE_PREFIX|status=${status?.name ?: "ANY"}|category=${normalizedCategory?.lowercase() ?: "ANY"}|limit=$resolvedLimit"
+        val statusKey = status?.name ?: "ANY"
+        val categoryKey = normalizedCategory?.lowercase() ?: "ANY"
+        val cacheKey = "$OVERVIEW_CACHE_PREFIX|status=$statusKey|category=$categoryKey|limit=$resolvedLimit"
         return getCached(cacheKey) {
             equipmentRepository.findOverview(status, normalizedCategory)
                 .take(resolvedLimit)
@@ -84,7 +86,6 @@ class EquipmentService(
                 .map { (entity, score) -> entity.toSearchItemResponse(score) }
             }
         }
-    }
 
     @Transactional(readOnly = true)
     fun detectDuplicates(request: DetectEquipmentDuplicateRequest, limit: Int?): List<EquipmentDuplicateCandidateResponse> {
