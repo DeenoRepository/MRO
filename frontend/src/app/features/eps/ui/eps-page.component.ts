@@ -182,6 +182,8 @@ interface EquipmentDraft {
             </form>
 
             <div class="table-container">
+              <div class="table-feedback loading" *ngIf="registryLoading">Loading registry page...</div>
+              <div class="table-feedback error" *ngIf="!registryLoading && registryError">{{ registryError }}</div>
               <div class="table-toolbar">
                 <input
                   type="text"
@@ -279,7 +281,9 @@ interface EquipmentDraft {
                     </td>
                   </tr>
                   <tr *ngIf="filteredEquipment.length === 0">
-                    <td [attr.colspan]="visibleColumnCount + 2" class="no-data">No equipment matches current filters.</td>
+                    <td [attr.colspan]="visibleColumnCount + 2" class="no-data">
+                      {{ registryLoading ? 'Loading equipment...' : 'No equipment matches current filters.' }}
+                    </td>
                   </tr>
                 </tbody>
               </table>
@@ -532,6 +536,9 @@ interface EquipmentDraft {
     .duplicate-hints p { margin: 0 0 6px 0; font-weight: 700; }
     .duplicate-hints ul { margin: 0; padding-left: 18px; }
     .table-container { background: #fff; border-radius: 12px; border: 1px solid #e2e8f0; overflow: hidden; }
+    .table-feedback { padding: 10px 14px; font-size: .85rem; border-bottom: 1px solid #e2e8f0; }
+    .table-feedback.loading { color: #334155; background: #f8fafc; }
+    .table-feedback.error { color: #b91c1c; background: #fef2f2; }
     .table-toolbar { display: flex; flex-wrap: wrap; gap: 8px; padding: 12px 16px 0 16px; align-items: center; }
     .table-toolbar.second { padding-bottom: 12px; }
     .table-toolbar input, .table-toolbar select { min-width: 160px; padding: 8px 10px; border-radius: 6px; border: 1px solid #cbd5e1; font-size: 0.85rem; }
@@ -690,8 +697,10 @@ export class EpsPageComponent implements OnInit, OnDestroy {
   timelineTypeFilter: TimelineFilterType = 'ALL';
 
   loading = false;
+  registryLoading = false;
   submitting = false;
   error = '';
+  registryError = '';
 
   readonly form = this.fb.group({
     assetTag: ['', [Validators.required, Validators.maxLength(64)]],
@@ -725,17 +734,20 @@ export class EpsPageComponent implements OnInit, OnDestroy {
           sortBy: this.sortField,
           sortDirection: this.sortDirection
         }).pipe(
-          catchError(() => of({
-            data: {
-              items: [],
-              page: 0,
-              size: this.pageSize,
-              totalItems: 0,
-              totalPages: 1
-            },
-            meta: {},
-            errors: []
-          }))
+          catchError((err) => {
+            this.registryError = err?.error?.message ?? 'Failed to load registry page.';
+            return of({
+              data: {
+                items: [],
+                page: 0,
+                size: this.pageSize,
+                totalItems: 0,
+                totalPages: 1
+              },
+              meta: {},
+              errors: []
+            });
+          })
         )),
         takeUntil(this.destroy$)
       )
@@ -744,7 +756,7 @@ export class EpsPageComponent implements OnInit, OnDestroy {
         this.filteredEquipment = res.data.items;
         this.totalRegistryItems = res.data.totalItems;
         this.totalRegistryPages = Math.max(1, res.data.totalPages);
-        this.loading = false;
+        this.registryLoading = false;
       });
     this.load();
   }
@@ -1194,7 +1206,8 @@ export class EpsPageComponent implements OnInit, OnDestroy {
   }
 
   private applyPagination(): void {
-    this.loading = true;
+    this.registryLoading = true;
+    this.registryError = '';
     this.registryLoadTrigger$.next();
   }
 
