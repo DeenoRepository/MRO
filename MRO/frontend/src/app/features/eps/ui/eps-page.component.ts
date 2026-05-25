@@ -458,71 +458,6 @@ interface EquipmentDraft {
                 <ng-container [ngTemplateOutlet]="selectedWorkspaceTpl"></ng-container>
               </div>
 
-              <!-- Right Sidebar: Summary & Quick Edit -->
-              <aside class="detail-sidebar">
-                <!-- Sticky Summary Header -->
-                <section class="sticky-summary card-premium">
-                  <div class="summary-meta-header">
-                    <span class="meta-tag">{{ selectedEquipment.category }}</span>
-                    <span class="status-tag" [class]="selectedEquipment.status">{{ selectedEquipment.status }}</span>
-                  </div>
-                  <h2 class="summary-asset-title">{{ selectedEquipment.name }}</h2>
-                  <span class="summary-asset-tag">{{ selectedEquipment.assetTag }}</span>
-
-                  <div class="summary-details-grid">
-                    <div class="grid-item">
-                      <span class="item-label">Location</span>
-                      <span class="item-val">{{ selectedEquipment.location || '-' }}</span>
-                    </div>
-                    <div class="grid-item">
-                      <span class="item-label">Criticality</span>
-                      <span class="item-val" [class.critical-high]="computeCriticality(selectedEquipment) === 'HIGH'">
-                        {{ computeCriticality(selectedEquipment) }}
-                      </span>
-                    </div>
-                    <div class="grid-item">
-                      <span class="item-label">Open Tickets</span>
-                      <span class="item-val font-semibold">{{ selectedTicketCount }}</span>
-                    </div>
-                    <div class="grid-item">
-                      <span class="item-label">Active WO</span>
-                      <span class="item-val font-semibold">{{ selectedWorkOrderCount }}</span>
-                    </div>
-                  </div>
-
-                  <div class="context-actions">
-                    <button class="btn btn-secondary btn-sm" (click)="openQuickAction('ticket')">Create Ticket</button>
-                    <button class="btn btn-secondary btn-sm" (click)="openQuickAction('workorder')">Open WO</button>
-                    <button class="btn btn-secondary btn-sm" (click)="openQuickAction('manuals')">Manuals</button>
-                    <button class="btn btn-secondary btn-sm" (click)="showEditPanel = !showEditPanel">
-                      {{ showEditPanel ? 'Cancel Edit' : 'Edit Fields' }}
-                    </button>
-                  </div>
-                </section>
-
-                <!-- Mini Quick Edit Card -->
-                <section class="quick-edit-card card-premium" *ngIf="showEditPanel">
-                  <header class="edit-header">
-                    <h3>Quick Edit Asset</h3>
-                  </header>
-                  <form [formGroup]="editForm" (ngSubmit)="saveEquipmentEdit()">
-                    <div class="edit-form-fields">
-                      <label><span>Name</span><input type="text" formControlName="name" /></label>
-                      <label>
-                        <span>Category</span>
-                        <select formControlName="category">
-                          <option *ngFor="let c of activeCategories" [value]="c.code">{{ c.code }}</option>
-                        </select>
-                      </label>
-                      <label><span>Location</span><input type="text" formControlName="location" /></label>
-                      <button class="btn btn-primary btn-sm w-full mt-2" type="submit" [disabled]="editSubmitting || editForm.invalid || !editForm.dirty">
-                        {{ editSubmitting ? 'Saving...' : 'Save' }}
-                      </button>
-                    </div>
-                  </form>
-                </section>
-              </aside>
-
             </div>
           </div>
         </div>
@@ -1221,7 +1156,7 @@ interface EquipmentDraft {
 
     .detail-workspace-wrapper {
       display: grid;
-      grid-template-columns: 1fr 360px;
+      grid-template-columns: 1fr;
       gap: 24px;
       align-items: start;
     }
