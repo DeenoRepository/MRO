@@ -453,7 +453,12 @@ interface EquipmentDraft {
           <div class="registry-detail-section sticky-panel" *ngIf="isDetailOnlyPage && registryViewMode === 'BROWSE'">
             <div class="detail-workspace-wrapper" *ngIf="selectedEquipment">
               
-              <!-- Left Sidebar: Summary & Quick Edit -->
+              <!-- Workspace Detail Content directly inside the left panel -->
+              <div class="workspace-tabs-container">
+                <ng-container [ngTemplateOutlet]="selectedWorkspaceTpl"></ng-container>
+              </div>
+
+              <!-- Right Sidebar: Summary & Quick Edit -->
               <aside class="detail-sidebar">
                 <!-- Sticky Summary Header -->
                 <section class="sticky-summary card-premium">
@@ -518,10 +523,6 @@ interface EquipmentDraft {
                 </section>
               </aside>
 
-              <!-- Workspace Detail Content directly inside the right panel -->
-              <div class="workspace-tabs-container">
-                <ng-container [ngTemplateOutlet]="selectedWorkspaceTpl"></ng-container>
-              </div>
             </div>
           </div>
         </div>
@@ -1220,7 +1221,7 @@ interface EquipmentDraft {
 
     .detail-workspace-wrapper {
       display: grid;
-      grid-template-columns: 360px 1fr;
+      grid-template-columns: 1fr 360px;
       gap: 24px;
       align-items: start;
     }
