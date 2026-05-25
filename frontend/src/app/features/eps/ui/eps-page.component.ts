@@ -689,7 +689,7 @@ export class EpsPageComponent implements OnInit, OnDestroy {
     telemetryCoveragePercent: 0,
     avgRuntimeHours: 0
   };
-  widgets: DashboardWidget[] = [];
+  widgets: DashboardWidget[] = this.buildFallbackWidgets();
   equipmentDrafts: EquipmentDraft[] = [];
 
   timelineEvents: TimelineEvent[] = [];
@@ -779,7 +779,9 @@ export class EpsPageComponent implements OnInit, OnDestroy {
   }
 
   get visibleWidgets(): DashboardWidget[] {
-    return this.widgets.filter((w) => w.roles.includes(this.currentRole));
+    const roleWidgets = this.widgets.filter((w) => w.roles.includes(this.currentRole));
+    if (roleWidgets.length > 0) return roleWidgets;
+    return this.buildFallbackWidgets().filter((w) => w.roles.includes(this.currentRole));
   }
 
   load(): void {
@@ -810,6 +812,7 @@ export class EpsPageComponent implements OnInit, OnDestroy {
       },
       error: (err) => {
         this.error = err?.error?.message ?? 'Failed to load equipment.';
+        this.widgets = this.buildFallbackWidgets();
         this.loading = false;
       }
     });
@@ -1347,6 +1350,18 @@ export class EpsPageComponent implements OnInit, OnDestroy {
         ];
       }
     });
+  }
+
+  private buildFallbackWidgets(): DashboardWidget[] {
+    return [
+      { key: 'critical_assets', title: 'Critical Assets', value: '-', hint: 'data loading', roles: ['MANAGER', 'RELIABILITY_ENGINEER', 'AUDITOR'], tone: 'neutral' },
+      { key: 'offline_equipment', title: 'Offline Equipment', value: '-', hint: 'data loading', roles: ['TECHNICIAN', 'MANAGER', 'WAREHOUSE_OPERATOR'], tone: 'neutral' },
+      { key: 'expiring_certs', title: 'Expiring Certifications', value: '-', hint: 'data loading', roles: ['AUDITOR', 'MANAGER'], tone: 'neutral' },
+      { key: 'open_tickets', title: 'Open Tickets', value: '-', hint: 'data loading', roles: ['TECHNICIAN', 'MANAGER', 'RELIABILITY_ENGINEER'], tone: 'neutral' },
+      { key: 'overdue_pm', title: 'Overdue PM', value: '-', hint: 'data loading', roles: ['TECHNICIAN', 'MANAGER'], tone: 'neutral' },
+      { key: 'recent_changes', title: 'Recent Changes', value: '-', hint: 'data loading', roles: ['AUDITOR', 'MANAGER', 'RELIABILITY_ENGINEER'], tone: 'neutral' },
+      { key: 'pending_approvals', title: 'Pending Approvals', value: '-', hint: 'data loading', roles: ['MANAGER', 'AUDITOR'], tone: 'neutral' }
+    ];
   }
 
   private refreshDuplicateCandidates(): void {
