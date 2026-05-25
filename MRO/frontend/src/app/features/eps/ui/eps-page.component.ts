@@ -538,27 +538,35 @@ interface EquipmentDraft {
               </div>
             </div>
 
-            <!-- TAB CONTENT: Overview (Reliability snapshot) -->
+            <!-- TAB CONTENT: Overview (Equipment Technical Specifications) -->
             <section *ngIf="detailTab === 'OVERVIEW'" class="analytics-card card-premium">
               <header class="card-header">
-                <h3>Reliability & Performance Snapshot</h3>
+                <h3>Technical Specifications & Asset Overview</h3>
               </header>
               <div class="analytics-grid">
                 <div class="metric-box">
-                  <span class="metric-label">Total Assets</span>
-                  <span class="metric-value">{{ analyticsSummary.totalAssets }}</span>
+                  <span class="metric-label">Manufacturer</span>
+                  <span class="metric-value" style="font-size: 1.2rem; font-weight: 600;">{{ selectedEquipment?.manufacturer || 'Not Specified' }}</span>
                 </div>
                 <div class="metric-box">
-                  <span class="metric-label">Active Status</span>
-                  <span class="metric-value">{{ analyticsSummary.activeAssets }}</span>
+                  <span class="metric-label">Model</span>
+                  <span class="metric-value" style="font-size: 1.2rem; font-weight: 600;">{{ selectedEquipment?.model || 'Not Specified' }}</span>
                 </div>
                 <div class="metric-box">
-                  <span class="metric-label">Telemetry Coverage</span>
-                  <span class="metric-value">{{ analyticsSummary.telemetryCoveragePercent }}%</span>
+                  <span class="metric-label">Serial Number</span>
+                  <span class="metric-value" style="font-size: 1.2rem; font-weight: 600; font-family: monospace;">{{ selectedEquipment?.serialNumber || 'Not Specified' }}</span>
                 </div>
                 <div class="metric-box">
-                  <span class="metric-label">Avg Runtime Hours</span>
-                  <span class="metric-value">{{ analyticsSummary.avgRuntimeHours }} h</span>
+                  <span class="metric-label">Installation Date</span>
+                  <span class="metric-value" style="font-size: 1.2rem; font-weight: 600;">{{ selectedEquipment?.installDate || 'Not Specified' }}</span>
+                </div>
+                <div class="metric-box">
+                  <span class="metric-label">Registered Date</span>
+                  <span class="metric-value" style="font-size: 1.2rem; font-weight: 600;">{{ selectedEquipment?.createdAt | date:'mediumDate' }}</span>
+                </div>
+                <div class="metric-box">
+                  <span class="metric-label">Last Database Update</span>
+                  <span class="metric-value" style="font-size: 1.2rem; font-weight: 600;">{{ selectedEquipment?.updatedAt | date:'mediumDate' }}</span>
                 </div>
               </div>
             </section>
