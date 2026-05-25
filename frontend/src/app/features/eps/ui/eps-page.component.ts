@@ -55,6 +55,14 @@ interface DashboardWidget {
   tone: 'neutral' | 'success' | 'warning' | 'danger' | 'info';
 }
 
+interface EquipmentDraft {
+  id: string;
+  assetTag: string;
+  name: string;
+  category: string;
+  savedAt: string;
+}
+
 @Component({
   selector: 'mro-eps-page',
   standalone: true,
@@ -142,6 +150,21 @@ interface DashboardWidget {
                 <input type="text" formControlName="assetTag" placeholder="Asset Tag (e.g. EQ-100)" />
                 <input type="text" formControlName="name" placeholder="Asset Name" />
                 <input type="text" formControlName="category" placeholder="Category" />
+              </div>
+              <div class="draft-row">
+                <button type="button" class="btn btn-secondary btn-sm" (click)="saveEquipmentDraft()">Save Offline Draft</button>
+              </div>
+              <div class="draft-list" *ngIf="equipmentDrafts.length > 0">
+                <div class="draft-item" *ngFor="let draft of equipmentDrafts">
+                  <div class="draft-meta">
+                    <strong>{{ draft.assetTag || 'No Tag' }}</strong> | {{ draft.name || 'No Name' }}
+                    <span>{{ draft.savedAt | date: 'short' }}</span>
+                  </div>
+                  <div class="draft-actions">
+                    <button type="button" class="btn btn-secondary btn-sm" (click)="loadEquipmentDraft(draft.id)">Load</button>
+                    <button type="button" class="btn btn-secondary btn-sm" (click)="removeEquipmentDraft(draft.id)">Remove</button>
+                  </div>
+                </div>
               </div>
               <div class="duplicate-hints" *ngIf="duplicateCandidates.length > 0">
                 <p>Potential duplicates found:</p>
@@ -488,7 +511,17 @@ interface DashboardWidget {
     .btn-secondary { background: #f1f5f9; color: #475569; }
     .btn-secondary:hover { background: #e2e8f0; }
     .btn-sm { padding: 6px 10px; font-size: 0.8rem; }
+    .technician-mode .btn { padding: 10px 16px; font-size: 0.9rem; }
+    .technician-mode input,
+    .technician-mode select,
+    .technician-mode textarea { padding: 10px 12px; font-size: 0.95rem; }
     .error { color: #dc2626; margin-top: 8px; font-size: 0.9rem; }
+    .draft-row { margin-bottom: 8px; }
+    .draft-list { display: flex; flex-direction: column; gap: 8px; margin-bottom: 10px; }
+    .draft-item { border: 1px solid #e2e8f0; background: #f8fafc; border-radius: 8px; padding: 8px; display: flex; justify-content: space-between; gap: 8px; align-items: center; }
+    .draft-meta { font-size: 0.8rem; color: #334155; display: flex; flex-direction: column; gap: 2px; }
+    .draft-meta span { color: #64748b; font-size: 0.75rem; }
+    .draft-actions { display: flex; gap: 6px; }
     .duplicate-hints { border: 1px solid #fcd34d; background: #fffbeb; border-radius: 8px; padding: 10px; margin-bottom: 10px; font-size: 0.82rem; color: #78350f; }
     .duplicate-hints p { margin: 0 0 6px 0; font-weight: 700; }
     .duplicate-hints ul { margin: 0; padding-left: 18px; }
@@ -570,6 +603,7 @@ interface DashboardWidget {
 })
 export class EpsPageComponent implements OnInit {
   private readonly filtersStorageKey = 'eps_registry_saved_filters_v2';
+  private readonly equipmentDraftsStorageKey = 'eps_equipment_drafts_v1';
 
   columns: { key: RegistryColumnKey; label: string; visible: boolean }[] = [
     { key: 'assetTag', label: 'Asset Tag', visible: true },
@@ -631,6 +665,7 @@ export class EpsPageComponent implements OnInit {
     avgRuntimeHours: 0
   };
   widgets: DashboardWidget[] = [];
+  equipmentDrafts: EquipmentDraft[] = [];
 
   timelineEvents: TimelineEvent[] = [];
   filteredTimelineEvents: TimelineEvent[] = [];
@@ -653,6 +688,7 @@ export class EpsPageComponent implements OnInit {
 
   ngOnInit(): void {
     this.loadSavedFilters();
+    this.loadEquipmentDrafts();
     this.form.valueChanges.subscribe(() => this.refreshDuplicateCandidates());
     this.load();
   }
@@ -1019,6 +1055,49 @@ export class EpsPageComponent implements OnInit {
     } catch {
       this.savedFilters = [];
     }
+  }
+
+  private loadEquipmentDrafts(): void {
+    const raw = localStorage.getItem(this.equipmentDraftsStorageKey);
+    if (!raw) return;
+    try {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed)) this.equipmentDrafts = parsed;
+    } catch {
+      this.equipmentDrafts = [];
+    }
+  }
+
+  private persistEquipmentDrafts(): void {
+    localStorage.setItem(this.equipmentDraftsStorageKey, JSON.stringify(this.equipmentDrafts));
+  }
+
+  saveEquipmentDraft(): void {
+    const draft: EquipmentDraft = {
+      id: crypto.randomUUID(),
+      assetTag: this.form.controls.assetTag.value ?? '',
+      name: this.form.controls.name.value ?? '',
+      category: this.form.controls.category.value ?? '',
+      savedAt: new Date().toISOString()
+    };
+    this.equipmentDrafts.unshift(draft);
+    this.persistEquipmentDrafts();
+  }
+
+  loadEquipmentDraft(id: string): void {
+    const draft = this.equipmentDrafts.find((d) => d.id === id);
+    if (!draft) return;
+    this.form.patchValue({
+      assetTag: draft.assetTag,
+      name: draft.name,
+      category: draft.category
+    });
+    this.refreshDuplicateCandidates();
+  }
+
+  removeEquipmentDraft(id: string): void {
+    this.equipmentDrafts = this.equipmentDrafts.filter((d) => d.id !== id);
+    this.persistEquipmentDrafts();
   }
 
   private applyFiltersAndSort(): void {

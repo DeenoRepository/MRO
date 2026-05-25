@@ -4,6 +4,14 @@ import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { EpsService } from '../data/eps.service';
 import { ChangeRequest, CreateChangeRequest, DecideChangeRequest } from '../data/eps.models';
 
+interface ChangeRequestDraft {
+  id: string;
+  changeType: 'CREATE' | 'UPDATE';
+  entityId: string;
+  proposedData: string;
+  savedAt: string;
+}
+
 @Component({
   selector: 'mro-eps-change-requests',
   standalone: true,
@@ -42,9 +50,24 @@ import { ChangeRequest, CreateChangeRequest, DecideChangeRequest } from '../data
             <button type="submit" [disabled]="createForm.invalid || submitting" class="btn btn-success">
               {{ submitting ? 'Submitting...' : 'Submit Request' }}
             </button>
+            <button type="button" (click)="saveOfflineDraft()" class="btn btn-secondary">Save Offline Draft</button>
             <button type="button" (click)="showCreateForm = false" class="btn btn-secondary">Cancel</button>
           </div>
         </form>
+        <div class="draft-list" *ngIf="drafts.length > 0">
+          <h4>Offline Drafts</h4>
+          <div class="draft-item" *ngFor="let draft of drafts">
+            <div class="draft-meta">
+              <strong>{{ draft.changeType }}</strong>
+              <span *ngIf="draft.entityId">Entity: {{ draft.entityId }}</span>
+              <span>{{ draft.savedAt | date: 'short' }}</span>
+            </div>
+            <div class="draft-actions">
+              <button type="button" class="btn btn-secondary btn-sm" (click)="loadDraft(draft.id)">Load</button>
+              <button type="button" class="btn btn-secondary btn-sm" (click)="removeDraft(draft.id)">Remove</button>
+            </div>
+          </div>
+        </div>
         <p *ngIf="error" class="error-msg">{{ error }}</p>
       </div>
 
@@ -181,15 +204,24 @@ import { ChangeRequest, CreateChangeRequest, DecideChangeRequest } from '../data
     .decision-buttons { display: flex; gap: 8px; }
     .decision-buttons button { flex: 1; }
     .loading,.no-data { padding: 40px; text-align: center; color: #64748b; font-style: italic; }
+    .draft-list { margin-top: 14px; border-top: 1px solid #e2e8f0; padding-top: 10px; display: flex; flex-direction: column; gap: 8px; }
+    .draft-list h4 { margin: 0; font-size: .9rem; color: #334155; }
+    .draft-item { border: 1px solid #e2e8f0; border-radius: 8px; padding: 8px; background: #f8fafc; display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+    .draft-meta { font-size: .8rem; color: #334155; display: flex; flex-direction: column; gap: 2px; }
+    .draft-meta span { color: #64748b; font-size: .75rem; }
+    .draft-actions { display: flex; gap: 6px; }
   `]
 })
 export class EpsChangeRequestsComponent implements OnInit {
+  private readonly draftsStorageKey = 'eps_change_request_drafts_v1';
+
   requests: ChangeRequest[] = [];
   loading = false;
   submitting = false;
   showCreateForm = false;
   error = '';
   expandedDiffIds = new Set<string>();
+  drafts: ChangeRequestDraft[] = [];
 
   readonly createForm = this.fb.group({
     changeType: ['CREATE', Validators.required],
@@ -203,6 +235,7 @@ export class EpsChangeRequestsComponent implements OnInit {
   ) {}
 
   ngOnInit(): void {
+    this.loadDrafts();
     this.loadRequests();
   }
 
@@ -249,6 +282,8 @@ export class EpsChangeRequestsComponent implements OnInit {
         this.submitting = false;
         this.showCreateForm = false;
         this.createForm.reset({ changeType: 'CREATE', entityId: '', proposedData: '' });
+        this.createForm.controls.entityId.clearValidators();
+        this.createForm.controls.entityId.updateValueAndValidity();
         this.loadRequests();
       },
       error: (err) => {
@@ -320,5 +355,49 @@ export class EpsChangeRequestsComponent implements OnInit {
     } catch {
       return null;
     }
+  }
+
+  private loadDrafts(): void {
+    const raw = localStorage.getItem(this.draftsStorageKey);
+    if (!raw) return;
+    try {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed)) this.drafts = parsed;
+    } catch {
+      this.drafts = [];
+    }
+  }
+
+  private persistDrafts(): void {
+    localStorage.setItem(this.draftsStorageKey, JSON.stringify(this.drafts));
+  }
+
+  saveOfflineDraft(): void {
+    const draft: ChangeRequestDraft = {
+      id: crypto.randomUUID(),
+      changeType: (this.createForm.controls.changeType.value as 'CREATE' | 'UPDATE') ?? 'CREATE',
+      entityId: this.createForm.controls.entityId.value ?? '',
+      proposedData: this.createForm.controls.proposedData.value ?? '{}',
+      savedAt: new Date().toISOString()
+    };
+    this.drafts.unshift(draft);
+    this.persistDrafts();
+  }
+
+  loadDraft(id: string): void {
+    const draft = this.drafts.find((d) => d.id === id);
+    if (!draft) return;
+    this.createForm.patchValue({
+      changeType: draft.changeType,
+      entityId: draft.entityId,
+      proposedData: draft.proposedData
+    });
+    this.onChangeTypeChanged();
+    this.showCreateForm = true;
+  }
+
+  removeDraft(id: string): void {
+    this.drafts = this.drafts.filter((d) => d.id !== id);
+    this.persistDrafts();
   }
 }
