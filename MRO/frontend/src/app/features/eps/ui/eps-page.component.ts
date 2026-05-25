@@ -469,7 +469,25 @@ interface EquipmentDraft {
             <div class="workspace-nav-tabs">
               <div class="nav-buttons">
                 <button *ngFor="let tab of detailTabs" class="workspace-tab-btn" [class.active]="detailTab === tab" (click)="onDetailTabSelect(tab)">
-                  {{ tab }}
+                  <ng-container [ngSwitch]="tab">
+                    <!-- Icon OVERVIEW -->
+                    <svg *ngSwitchCase="'OVERVIEW'" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="tab-btn-icon"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
+                    <!-- Icon DOCUMENTS -->
+                    <svg *ngSwitchCase="'DOCUMENTS'" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="tab-btn-icon"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path></svg>
+                    <!-- Icon MAINTENANCE -->
+                    <svg *ngSwitchCase="'MAINTENANCE'" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="tab-btn-icon"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"></path></svg>
+                    <!-- Icon TICKETS -->
+                    <svg *ngSwitchCase="'TICKETS'" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="tab-btn-icon"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"></path><line x1="4" y1="22" x2="4" y2="15"></line></svg>
+                    <!-- Icon INVENTORY -->
+                    <svg *ngSwitchCase="'INVENTORY'" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="tab-btn-icon"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path><circle cx="12" cy="13" r="4"></circle></svg>
+                    <!-- Icon HISTORY -->
+                    <svg *ngSwitchCase="'HISTORY'" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="tab-btn-icon"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+                    <!-- Icon COMPLIANCE -->
+                    <svg *ngSwitchCase="'COMPLIANCE'" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="tab-btn-icon"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>
+                    <!-- Icon RELIABILITY -->
+                    <svg *ngSwitchCase="'RELIABILITY'" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="tab-btn-icon"><path d="M22 12h-4l-3 9L9 3l-3 9H2"></path></svg>
+                  </ng-container>
+                  <span>{{ formatTabLabel(tab) }}</span>
                 </button>
               </div>
             </div>
@@ -2132,16 +2150,18 @@ interface EquipmentDraft {
     }
 
     .workspace-tab-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
       background: transparent;
       border: none;
-      font-size: 0.75rem;
-      font-weight: 700;
+      font-size: 0.8rem;
+      font-weight: 600;
       color: var(--text-muted);
       padding: 8px 14px;
       border-radius: var(--border-radius-md);
       cursor: pointer;
       transition: var(--transition-smooth);
-      text-transform: uppercase;
       letter-spacing: 0.02em;
     }
 
@@ -2154,6 +2174,11 @@ interface EquipmentDraft {
       background: var(--primary-gradient);
       color: white !important;
       box-shadow: 0 4px 12px rgba(2, 132, 199, 0.15);
+    }
+
+    .tab-btn-icon {
+      flex-shrink: 0;
+      opacity: 0.85;
     }
 
     /* Detail Card Overviews */
@@ -2957,6 +2982,20 @@ export class EpsPageComponent implements OnInit, OnDestroy {
 
   goBackToRegistry(): void {
     this.router.navigate(['/eps']);
+  }
+
+  formatTabLabel(tab: EquipmentDetailTab): string {
+    switch (tab) {
+      case 'OVERVIEW': return 'Overview';
+      case 'DOCUMENTS': return 'Documents';
+      case 'MAINTENANCE': return 'Maintenance';
+      case 'TICKETS': return 'Service Tickets';
+      case 'INVENTORY': return 'Media Gallery';
+      case 'HISTORY': return 'History Log';
+      case 'COMPLIANCE': return 'Compliance';
+      case 'RELIABILITY': return 'Telemetry Sensors';
+      default: return tab;
+    }
   }
 
   private syncViewportMode(): void {
