@@ -87,14 +87,14 @@ class EquipmentService(
             throw ResponseStatusException(HttpStatus.BAD_REQUEST, "size must be greater than 0")
         }
         val normalizedCategory = category?.trim()?.takeIf { it.isNotEmpty() }
-        val normalizedQuery = query?.trim()?.takeIf { it.isNotEmpty() }
+        val normalizedQuery = query?.trim()?.lowercase()?.takeIf { it.isNotEmpty() }
         val resolvedSortBy = when (sortBy?.trim()?.lowercase()) {
             "name" -> "name"
             "category" -> "category"
             "status" -> "status"
             "location" -> "location"
-            "updatedat" -> "updatedAt"
-            else -> "assetTag"
+            "updatedat" -> "updated_at"
+            else -> "asset_tag"
         }
         val resolvedSortDirection = if (sortDirection?.trim()?.equals("desc", ignoreCase = true) == true) {
             Sort.Direction.DESC

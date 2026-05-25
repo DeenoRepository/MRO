@@ -33,40 +33,41 @@ interface EquipmentRepository : JpaRepository<EquipmentEntity, UUID> {
 
     @Query(
         value = """
-        SELECT e
-        FROM EquipmentEntity e
-        WHERE (:status IS NULL OR e.status = :status)
-          AND (:category IS NULL OR LOWER(e.category) = LOWER(:category))
+        SELECT e.*
+        FROM eps.equipment e
+        WHERE (:status IS NULL OR e.status = CAST(:status AS VARCHAR))
+          AND (:category IS NULL OR e.category ILIKE CAST(:category AS VARCHAR))
           AND (
-            :query IS NULL
-            OR LOWER(e.assetTag) LIKE LOWER(CONCAT('%', :query, '%'))
-            OR LOWER(e.name) LIKE LOWER(CONCAT('%', :query, '%'))
-            OR LOWER(e.category) LIKE LOWER(CONCAT('%', :query, '%'))
-            OR LOWER(COALESCE(e.serialNumber, '')) LIKE LOWER(CONCAT('%', :query, '%'))
-            OR LOWER(COALESCE(e.manufacturer, '')) LIKE LOWER(CONCAT('%', :query, '%'))
-            OR LOWER(COALESCE(e.location, '')) LIKE LOWER(CONCAT('%', :query, '%'))
+            :searchTerm IS NULL
+            OR e.asset_tag ILIKE CONCAT('%', CAST(:searchTerm AS VARCHAR), '%')
+            OR e.name ILIKE CONCAT('%', CAST(:searchTerm AS VARCHAR), '%')
+            OR e.category ILIKE CONCAT('%', CAST(:searchTerm AS VARCHAR), '%')
+            OR COALESCE(e.serial_number, '') ILIKE CONCAT('%', CAST(:searchTerm AS VARCHAR), '%')
+            OR COALESCE(e.manufacturer, '') ILIKE CONCAT('%', CAST(:searchTerm AS VARCHAR), '%')
+            OR COALESCE(e.location, '') ILIKE CONCAT('%', CAST(:searchTerm AS VARCHAR), '%')
           )
         """,
         countQuery = """
-        SELECT COUNT(e)
-        FROM EquipmentEntity e
-        WHERE (:status IS NULL OR e.status = :status)
-          AND (:category IS NULL OR LOWER(e.category) = LOWER(:category))
+        SELECT COUNT(*)
+        FROM eps.equipment e
+        WHERE (:status IS NULL OR e.status = CAST(:status AS VARCHAR))
+          AND (:category IS NULL OR e.category ILIKE CAST(:category AS VARCHAR))
           AND (
-            :query IS NULL
-            OR LOWER(e.assetTag) LIKE LOWER(CONCAT('%', :query, '%'))
-            OR LOWER(e.name) LIKE LOWER(CONCAT('%', :query, '%'))
-            OR LOWER(e.category) LIKE LOWER(CONCAT('%', :query, '%'))
-            OR LOWER(COALESCE(e.serialNumber, '')) LIKE LOWER(CONCAT('%', :query, '%'))
-            OR LOWER(COALESCE(e.manufacturer, '')) LIKE LOWER(CONCAT('%', :query, '%'))
-            OR LOWER(COALESCE(e.location, '')) LIKE LOWER(CONCAT('%', :query, '%'))
+            :searchTerm IS NULL
+            OR e.asset_tag ILIKE CONCAT('%', CAST(:searchTerm AS VARCHAR), '%')
+            OR e.name ILIKE CONCAT('%', CAST(:searchTerm AS VARCHAR), '%')
+            OR e.category ILIKE CONCAT('%', CAST(:searchTerm AS VARCHAR), '%')
+            OR COALESCE(e.serial_number, '') ILIKE CONCAT('%', CAST(:searchTerm AS VARCHAR), '%')
+            OR COALESCE(e.manufacturer, '') ILIKE CONCAT('%', CAST(:searchTerm AS VARCHAR), '%')
+            OR COALESCE(e.location, '') ILIKE CONCAT('%', CAST(:searchTerm AS VARCHAR), '%')
           )
-        """
+        """,
+        nativeQuery = true
     )
     fun findRegistryPage(
         @Param("status") status: EquipmentStatus?,
         @Param("category") category: String?,
-        @Param("query") query: String?,
+        @Param("searchTerm") searchTerm: String?,
         pageable: Pageable
     ): Page<EquipmentEntity>
 }
