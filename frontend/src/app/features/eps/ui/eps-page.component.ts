@@ -44,6 +44,8 @@ interface AnalyticsSummary {
   avgRuntimeHours: number;
 }
 
+type ScanAction = 'OPEN_EQUIPMENT' | 'CREATE_TICKET' | 'OPEN_WORK_ORDER' | 'UPLOAD_PHOTO' | 'OPEN_MANUALS';
+
 @Component({
   selector: 'mro-eps-page',
   standalone: true,
@@ -81,6 +83,31 @@ interface AnalyticsSummary {
               <h2>Equipment Registry</h2>
               <p>High-density workspace with saved filters, column layouts, smart search, and bulk operations.</p>
             </header>
+
+            <section class="qr-card">
+              <header class="qr-header">
+                <h3>QR & Barcode Workflow</h3>
+                <span class="qr-note">Camera/USB/mobile scanner simulation</span>
+              </header>
+              <div class="qr-controls">
+                <input
+                  type="text"
+                  [value]="scannerInput"
+                  (input)="scannerInput = $any($event.target).value"
+                  placeholder="Scan code or enter asset tag / equipment ID"
+                />
+                <button class="btn btn-secondary btn-sm" (click)="runScannerLookup()">Scan</button>
+                <button class="btn btn-secondary btn-sm" (click)="printAssetCard()" [disabled]="!selectedEquipment">Print Asset Card</button>
+              </div>
+              <div class="scan-result" *ngIf="scanResultMessage">{{ scanResultMessage }}</div>
+              <div class="scan-actions" *ngIf="scannedEquipment">
+                <button class="btn btn-secondary btn-sm" (click)="handleScanAction('OPEN_EQUIPMENT')">Open Equipment</button>
+                <button class="btn btn-secondary btn-sm" (click)="handleScanAction('CREATE_TICKET')">Create Ticket</button>
+                <button class="btn btn-secondary btn-sm" (click)="handleScanAction('OPEN_WORK_ORDER')">Open Work Order</button>
+                <button class="btn btn-secondary btn-sm" (click)="handleScanAction('UPLOAD_PHOTO')">Upload Photo</button>
+                <button class="btn btn-secondary btn-sm" (click)="handleScanAction('OPEN_MANUALS')">Open Manuals</button>
+              </div>
+            </section>
 
             <form class="form-card" [formGroup]="form" (ngSubmit)="create()">
               <h3>Register Asset</h3>
@@ -401,6 +428,14 @@ interface AnalyticsSummary {
     .registry-list-section { display: flex; flex-direction: column; gap: 20px; }
     .section-header h2 { margin: 0; color: #0f172a; }
     .section-header p { margin: 4px 0 0 0; color: #64748b; font-size: 0.95rem; }
+    .qr-card { background: #fff; border-radius: 12px; border: 1px solid #e2e8f0; padding: 14px; }
+    .qr-header { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-bottom: 10px; }
+    .qr-header h3 { margin: 0; font-size: .95rem; color: #0f172a; }
+    .qr-note { font-size: .76rem; color: #64748b; }
+    .qr-controls { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+    .qr-controls input { min-width: 260px; flex: 1; padding: 8px 10px; border-radius: 6px; border: 1px solid #cbd5e1; }
+    .scan-result { margin-top: 8px; font-size: .82rem; color: #334155; }
+    .scan-actions { margin-top: 8px; display: flex; flex-wrap: wrap; gap: 6px; }
     .form-card { background: #fff; border-radius: 12px; padding: 20px; border: 1px solid #e2e8f0; }
     .form-card h3 { margin: 0 0 12px 0; font-size: 1rem; color: #475569; }
     .form-grid { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 12px; }
@@ -526,6 +561,9 @@ export class EpsPageComponent implements OnInit {
 
   equipment: Equipment[] = [];
   selectedEquipment?: Equipment;
+  scannedEquipment?: Equipment;
+  scannerInput = '';
+  scanResultMessage = '';
   selectedTicketCount = 0;
   selectedWorkOrderCount = 0;
 
@@ -779,6 +817,81 @@ export class EpsPageComponent implements OnInit {
 
   bulkPrintQr(): void {
     alert(`QR print batch prepared for ${this.selectedRows.size} assets (roadmap workflow stub).`);
+  }
+
+  runScannerLookup(): void {
+    const token = this.scannerInput.trim().toLowerCase();
+    if (!token) {
+      this.scanResultMessage = 'Scan input is empty.';
+      this.scannedEquipment = undefined;
+      return;
+    }
+    const found = this.equipment.find((item) =>
+      item.id.toLowerCase() === token ||
+      item.assetTag.toLowerCase() === token
+    );
+    if (!found) {
+      this.scanResultMessage = `No equipment found for "${this.scannerInput}".`;
+      this.scannedEquipment = undefined;
+      return;
+    }
+    this.scannedEquipment = found;
+    this.scanResultMessage = `Scanned: ${found.assetTag} | ${found.name}`;
+    this.selectEquipment(found);
+  }
+
+  handleScanAction(action: ScanAction): void {
+    if (!this.scannedEquipment) return;
+    if (action === 'OPEN_EQUIPMENT') {
+      this.selectEquipment(this.scannedEquipment);
+      this.detailTab = 'OVERVIEW';
+      return;
+    }
+    if (action === 'CREATE_TICKET') {
+      this.detailTab = 'TICKETS';
+      this.openQuickAction('ticket');
+      return;
+    }
+    if (action === 'OPEN_WORK_ORDER') {
+      this.detailTab = 'MAINTENANCE';
+      this.openQuickAction('workorder');
+      return;
+    }
+    if (action === 'UPLOAD_PHOTO') {
+      this.detailTab = 'INVENTORY';
+      alert(`Photo upload workflow opened for ${this.scannedEquipment.assetTag}.`);
+      return;
+    }
+    this.detailTab = 'DOCUMENTS';
+    this.openQuickAction('manuals');
+  }
+
+  printAssetCard(): void {
+    if (!this.selectedEquipment) return;
+    const asset = this.selectedEquipment;
+    const cardHtml = `
+      <html>
+        <head><title>Asset Card ${asset.assetTag}</title></head>
+        <body style="font-family: Arial, sans-serif; padding: 24px;">
+          <h2>Asset Card</h2>
+          <p><strong>Asset Tag:</strong> ${asset.assetTag}</p>
+          <p><strong>Name:</strong> ${asset.name}</p>
+          <p><strong>Category:</strong> ${asset.category}</p>
+          <p><strong>Status:</strong> ${asset.status}</p>
+          <p><strong>Location:</strong> ${asset.location ?? '-'}</p>
+          <p><strong>QR Payload:</strong> ${asset.id}</p>
+          <hr />
+          <p style="font-size: 12px; color: #64748b;">Generated by EPS Frontend</p>
+        </body>
+      </html>
+    `;
+    const popup = window.open('', '_blank', 'width=520,height=640');
+    if (!popup) return;
+    popup.document.open();
+    popup.document.write(cardHtml);
+    popup.document.close();
+    popup.focus();
+    popup.print();
   }
 
   bulkAssignDocument(): void {
