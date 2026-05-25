@@ -1,4 +1,5 @@
 import { Injectable } from '@angular/core';
+import { HttpClient, HttpEvent } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { ApiSuccessResponse } from '../../../core/api/api.models';
 import { ApiClientService } from '../../../core/api/api-client.service';
@@ -6,7 +7,10 @@ import { CreateEquipmentRequest, Equipment, UpdateEquipmentRequest, EquipmentDoc
 
 @Injectable({ providedIn: 'root' })
 export class EpsService {
-  constructor(private readonly api: ApiClientService) {}
+  constructor(
+    private readonly api: ApiClientService,
+    private readonly http: HttpClient
+  ) {}
 
   getEquipment(): Observable<ApiSuccessResponse<Equipment[]>> {
     return this.api.get<Equipment[]>('/eps/equipment');
@@ -72,6 +76,24 @@ export class EpsService {
       formData.append('extractedText', extractedText.trim());
     }
     return this.api.post<FormData, EquipmentDocument>(`/eps/equipment/${equipmentId}/documents`, formData);
+  }
+
+  uploadEquipmentDocumentWithProgress(
+    equipmentId: string,
+    documentType: string,
+    file: File,
+    extractedText?: string
+  ): Observable<HttpEvent<ApiSuccessResponse<EquipmentDocument>>> {
+    const formData = new FormData();
+    formData.append('documentType', documentType);
+    formData.append('file', file);
+    if (extractedText && extractedText.trim().length > 0) {
+      formData.append('extractedText', extractedText.trim());
+    }
+    return this.http.post<ApiSuccessResponse<EquipmentDocument>>(`/api/v1/eps/equipment/${equipmentId}/documents`, formData, {
+      observe: 'events',
+      reportProgress: true
+    });
   }
 
   getChangeRequests(): Observable<ApiSuccessResponse<ChangeRequest[]>> {

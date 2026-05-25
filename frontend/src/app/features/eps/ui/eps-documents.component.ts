@@ -1,5 +1,6 @@
-import { Component, Input, OnChanges, SimpleChanges } from '@angular/core';
+import { HttpEventType } from '@angular/common/http';
 import { CommonModule } from '@angular/common';
+import { Component, Input, OnChanges, SimpleChanges } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { EpsService } from '../data/eps.service';
 import { Equipment, EquipmentDocument } from '../data/eps.models';
@@ -34,9 +35,11 @@ import { Equipment, EquipmentDocument } from '../data/eps.models';
             (dragleave)="onDragLeave($event)"
             (drop)="onDrop($event)"
           >
-            <input type="file" (change)="onFileSelected($event)" #fileInput />
+            <input type="file" (change)="onFileSelected($event)" />
             <p *ngIf="!selectedFile">Drag file here or click input</p>
             <p *ngIf="selectedFile">Selected: {{ selectedFile.name }}</p>
+            <p *ngIf="selectedFileChecksum" class="checksum-line">SHA-256: {{ selectedFileChecksum.substring(0, 16) }}...</p>
+            <p *ngIf="duplicateChecksumDetected" class="warning-msg">Duplicate checksum detected in existing versions.</p>
           </div>
           <div class="form-group extracted-text-group">
             <textarea
@@ -45,10 +48,18 @@ import { Equipment, EquipmentDocument } from '../data/eps.models';
               placeholder="Optional extracted OCR text for in-document search"
             ></textarea>
           </div>
-          <button type="submit" [disabled]="uploadForm.invalid || !selectedFile || uploading" class="btn btn-primary">
+          <button type="submit" [disabled]="uploadForm.invalid || !selectedFile || uploading || duplicateChecksumDetected" class="btn btn-primary">
             {{ uploading ? 'Uploading...' : 'Upload' }}
           </button>
         </form>
+
+        <div class="progress-wrap" *ngIf="uploading">
+          <div class="progress-label">Upload progress: {{ uploadProgress }}%</div>
+          <div class="progress-track">
+            <div class="progress-bar" [style.width.%]="uploadProgress"></div>
+          </div>
+        </div>
+
         <p *ngIf="uploadError" class="error-msg">{{ uploadError }}</p>
         <p *ngIf="uploadSuccess" class="success-msg">Document uploaded successfully!</p>
       </div>
@@ -74,10 +85,11 @@ import { Equipment, EquipmentDocument } from '../data/eps.models';
               <td class="filename">{{ doc.fileName }}</td>
               <td><span class="type-tag">{{ doc.documentType }}</span></td>
               <td>v{{ doc.version }}</td>
-              <td class="hash" [title]="doc.checksumSha256">{{ doc.checksumSha256.substring(0, 8) }}...</td>
-              <td>{{ doc.uploadedAt | date:'yyyy-MM-dd HH:mm' }}</td>
+              <td class="hash" [title]="doc.checksumSha256">{{ doc.checksumSha256.substring(0, 12) }}...</td>
+              <td>{{ doc.uploadedAt | date: 'yyyy-MM-dd HH:mm' }}</td>
               <td>
                 <button class="btn btn-secondary btn-sm" (click)="previewDocument(doc)">Preview</button>
+                <button class="btn btn-secondary btn-sm" (click)="setCompareBase(doc)">Compare</button>
                 <a [href]="downloadUrl(doc)" class="download-link" target="_blank">Download</a>
               </td>
             </tr>
@@ -85,23 +97,45 @@ import { Equipment, EquipmentDocument } from '../data/eps.models';
         </table>
       </div>
 
+      <div class="compare-section" *ngIf="compareBaseDoc">
+        <div class="preview-header">
+          <h4>Version Compare: base v{{ compareBaseDoc.version }}</h4>
+          <button class="btn btn-secondary btn-sm" (click)="clearCompare()">Clear</button>
+        </div>
+        <div class="compare-picker">
+          <label>Compare with:</label>
+          <select [value]="compareTargetId" (change)="setCompareTarget($any($event.target).value)">
+            <option value="">Select version</option>
+            <option *ngFor="let doc of compareCandidates" [value]="doc.id">v{{ doc.version }} - {{ doc.fileName }}</option>
+          </select>
+        </div>
+        <div class="compare-grid" *ngIf="compareTargetDoc">
+          <div class="compare-col">
+            <h5>Base</h5>
+            <p><strong>Filename:</strong> {{ compareBaseDoc.fileName }}</p>
+            <p><strong>Type:</strong> {{ compareBaseDoc.documentType }}</p>
+            <p><strong>Checksum:</strong> <span class="hash">{{ compareBaseDoc.checksumSha256.substring(0, 16) }}...</span></p>
+            <p><strong>Uploaded:</strong> {{ compareBaseDoc.uploadedAt | date: 'medium' }}</p>
+          </div>
+          <div class="compare-col">
+            <h5>Target</h5>
+            <p [class.changed]="compareBaseDoc.fileName !== compareTargetDoc.fileName"><strong>Filename:</strong> {{ compareTargetDoc.fileName }}</p>
+            <p [class.changed]="compareBaseDoc.documentType !== compareTargetDoc.documentType"><strong>Type:</strong> {{ compareTargetDoc.documentType }}</p>
+            <p [class.changed]="compareBaseDoc.checksumSha256 !== compareTargetDoc.checksumSha256">
+              <strong>Checksum:</strong> <span class="hash">{{ compareTargetDoc.checksumSha256.substring(0, 16) }}...</span>
+            </p>
+            <p><strong>Uploaded:</strong> {{ compareTargetDoc.uploadedAt | date: 'medium' }}</p>
+          </div>
+        </div>
+      </div>
+
       <div class="preview-section" *ngIf="previewDoc">
         <div class="preview-header">
           <h4>Preview: {{ previewDoc.fileName }}</h4>
           <button class="btn btn-secondary btn-sm" (click)="closePreview()">Close</button>
         </div>
-        <img
-          *ngIf="isImage(previewDoc.fileName)"
-          [src]="downloadUrl(previewDoc)"
-          alt="Document preview"
-          class="preview-image"
-        />
-        <iframe
-          *ngIf="isPdf(previewDoc.fileName)"
-          [src]="downloadUrl(previewDoc)"
-          class="preview-frame"
-          title="PDF preview"
-        ></iframe>
+        <img *ngIf="isImage(previewDoc.fileName)" [src]="downloadUrl(previewDoc)" alt="Document preview" class="preview-image" />
+        <iframe *ngIf="isPdf(previewDoc.fileName)" [src]="downloadUrl(previewDoc)" class="preview-frame" title="PDF preview"></iframe>
         <div *ngIf="!isImage(previewDoc.fileName) && !isPdf(previewDoc.fileName)" class="preview-fallback">
           Preview is not available for this file type. Use Download.
         </div>
@@ -113,221 +147,58 @@ import { Equipment, EquipmentDocument } from '../data/eps.models';
     </div>
   `,
   styles: [`
-    .documents-card {
-      background: #ffffff;
-      border-radius: 12px;
-      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
-      border: 1px solid #eef2f6;
-      padding: 24px;
-      display: flex;
-      flex-direction: column;
-      gap: 20px;
-    }
-    .card-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      border-bottom: 2px solid #f1f5f9;
-      padding-bottom: 12px;
-    }
-    .card-header h3 {
-      margin: 0;
-      color: #1e293b;
-      font-size: 1.25rem;
-    }
-    .eq-name {
-      color: #0284c7;
-      font-weight: 700;
-    }
-    .badge {
-      background: #e0f2fe;
-      color: #0369a1;
-      padding: 4px 10px;
-      border-radius: 9999px;
-      font-size: 0.85rem;
-      font-weight: 600;
-    }
-    h4 {
-      margin: 0 0 12px 0;
-      color: #475569;
-      font-size: 1rem;
-      font-weight: 600;
-    }
-    .upload-section {
-      background: #f8fafc;
-      border-radius: 8px;
-      padding: 16px;
-      border: 1px dashed #cbd5e1;
-    }
-    .upload-form {
-      display: flex;
-      gap: 12px;
-      align-items: center;
-      flex-wrap: wrap;
-    }
-    .form-group select {
-      padding: 8px 12px;
-      border-radius: 6px;
-      border: 1px solid #cbd5e1;
-      background: #ffffff;
-      font-family: inherit;
-    }
-    .file-input-group input {
-      font-family: inherit;
-    }
-    .dropzone {
-      min-width: 240px;
-      border: 1px dashed #94a3b8;
-      background: #ffffff;
-      border-radius: 8px;
-      padding: 10px;
-      display: flex;
-      flex-direction: column;
-      gap: 6px;
-    }
-    .dropzone.drag-active {
-      border-color: #0284c7;
-      background: #f0f9ff;
-    }
-    .dropzone p {
-      margin: 0;
-      color: #64748b;
-      font-size: 0.8rem;
-    }
-    .extracted-text-group {
-      width: 100%;
-    }
-    .extracted-text-group textarea {
-      width: 100%;
-      resize: vertical;
-      min-height: 64px;
-      border-radius: 6px;
-      border: 1px solid #cbd5e1;
-      padding: 8px 10px;
-      font-family: inherit;
-      font-size: 0.85rem;
-    }
-    .btn {
-      padding: 8px 16px;
-      border-radius: 6px;
-      font-weight: 600;
-      border: none;
-      cursor: pointer;
-      font-family: inherit;
-      transition: all 0.2s ease;
-    }
-    .btn-primary {
-      background: #0284c7;
-      color: white;
-    }
-    .btn-primary:hover {
-      background: #0369a1;
-    }
-    .btn-primary:disabled {
-      background: #94a3b8;
-      cursor: not-allowed;
-    }
-    .error-msg { color: #dc2626; margin: 8px 0 0 0; font-size: 0.9rem; }
-    .success-msg { color: #16a34a; margin: 8px 0 0 0; font-size: 0.9rem; }
-    .docs-table {
-      width: 100%;
-      border-collapse: collapse;
-      text-align: left;
-      font-size: 0.9rem;
-    }
-    .docs-table th, .docs-table td {
-      padding: 12px;
-      border-bottom: 1px solid #f1f5f9;
-    }
-    .docs-table th {
-      background: #f8fafc;
-      color: #64748b;
-      font-weight: 600;
-    }
-    .filename {
-      font-weight: 600;
-      color: #334155;
-    }
-    .type-tag {
-      background: #f1f5f9;
-      color: #475569;
-      padding: 2px 8px;
-      border-radius: 4px;
-      font-size: 0.8rem;
-      font-weight: 500;
-    }
-    .hash {
-      font-family: monospace;
-      color: #64748b;
-    }
-    .download-link {
-      color: #0284c7;
-      text-decoration: none;
-      font-weight: 600;
-      margin-left: 8px;
-    }
-    .download-link:hover {
-      text-decoration: underline;
-    }
-    .loading, .no-data {
-      padding: 20px;
-      text-align: center;
-      color: #64748b;
-      font-style: italic;
-    }
-    .preview-section {
-      border-top: 1px solid #e2e8f0;
-      padding-top: 16px;
-      display: flex;
-      flex-direction: column;
-      gap: 10px;
-    }
-    .preview-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-    }
-    .preview-image {
-      width: 100%;
-      max-height: 340px;
-      object-fit: contain;
-      border: 1px solid #e2e8f0;
-      border-radius: 8px;
-      background: #f8fafc;
-    }
-    .preview-frame {
-      width: 100%;
-      min-height: 360px;
-      border: 1px solid #e2e8f0;
-      border-radius: 8px;
-      background: #ffffff;
-    }
-    .preview-fallback {
-      border: 1px dashed #cbd5e1;
-      border-radius: 8px;
-      padding: 16px;
-      color: #64748b;
-      font-size: 0.9rem;
-      background: #f8fafc;
-    }
-    .ocr-snippet {
-      background: #f8fafc;
-      border: 1px solid #e2e8f0;
-      border-radius: 8px;
-      padding: 12px;
-    }
-    .ocr-snippet h5 {
-      margin: 0 0 8px 0;
-      color: #334155;
-      font-size: 0.85rem;
-    }
-    .ocr-snippet p {
-      margin: 0;
-      color: #475569;
-      font-size: 0.85rem;
-      line-height: 1.4;
-      white-space: pre-wrap;
-    }
+    .documents-card { background: #fff; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,.05); border: 1px solid #eef2f6; padding: 24px; display: flex; flex-direction: column; gap: 20px; }
+    .card-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #f1f5f9; padding-bottom: 12px; }
+    .card-header h3 { margin: 0; color: #1e293b; font-size: 1.25rem; }
+    .eq-name { color: #0284c7; font-weight: 700; }
+    .badge { background: #e0f2fe; color: #0369a1; padding: 4px 10px; border-radius: 9999px; font-size: .85rem; font-weight: 600; }
+    h4 { margin: 0 0 12px 0; color: #475569; font-size: 1rem; font-weight: 600; }
+    .upload-section { background: #f8fafc; border-radius: 8px; padding: 16px; border: 1px dashed #cbd5e1; }
+    .upload-form { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+    .form-group select { padding: 8px 12px; border-radius: 6px; border: 1px solid #cbd5e1; background: #fff; font-family: inherit; }
+    .dropzone { min-width: 240px; border: 1px dashed #94a3b8; background: #fff; border-radius: 8px; padding: 10px; display: flex; flex-direction: column; gap: 6px; }
+    .dropzone.drag-active { border-color: #0284c7; background: #f0f9ff; }
+    .dropzone p { margin: 0; color: #64748b; font-size: .8rem; }
+    .checksum-line { color: #0f172a !important; font-family: monospace; }
+    .warning-msg { color: #b45309 !important; font-weight: 700; }
+    .extracted-text-group { width: 100%; }
+    .extracted-text-group textarea { width: 100%; resize: vertical; min-height: 64px; border-radius: 6px; border: 1px solid #cbd5e1; padding: 8px 10px; font-family: inherit; font-size: .85rem; }
+    .btn { padding: 8px 16px; border-radius: 6px; font-weight: 600; border: none; cursor: pointer; font-family: inherit; transition: all .2s ease; }
+    .btn-primary { background: #0284c7; color: #fff; }
+    .btn-primary:hover { background: #0369a1; }
+    .btn-primary:disabled { background: #94a3b8; cursor: not-allowed; }
+    .btn-secondary { background: #e2e8f0; color: #475569; }
+    .btn-sm { padding: 6px 10px; font-size: .8rem; }
+    .progress-wrap { margin-top: 10px; }
+    .progress-label { font-size: .8rem; color: #334155; margin-bottom: 4px; }
+    .progress-track { height: 8px; width: 100%; background: #dbeafe; border-radius: 999px; overflow: hidden; }
+    .progress-bar { height: 100%; background: #0284c7; transition: width .2s ease; }
+    .error-msg { color: #dc2626; margin: 8px 0 0 0; font-size: .9rem; }
+    .success-msg { color: #16a34a; margin: 8px 0 0 0; font-size: .9rem; }
+    .docs-table { width: 100%; border-collapse: collapse; text-align: left; font-size: .9rem; }
+    .docs-table th, .docs-table td { padding: 12px; border-bottom: 1px solid #f1f5f9; }
+    .docs-table th { background: #f8fafc; color: #64748b; font-weight: 600; }
+    .filename { font-weight: 600; color: #334155; }
+    .type-tag { background: #f1f5f9; color: #475569; padding: 2px 8px; border-radius: 4px; font-size: .8rem; font-weight: 500; }
+    .hash { font-family: monospace; color: #64748b; }
+    .download-link { color: #0284c7; text-decoration: none; font-weight: 600; margin-left: 8px; }
+    .download-link:hover { text-decoration: underline; }
+    .loading, .no-data { padding: 20px; text-align: center; color: #64748b; font-style: italic; }
+    .compare-section { border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px; background: #f8fafc; }
+    .compare-picker { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
+    .compare-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .compare-col { background: #fff; border: 1px solid #e2e8f0; border-radius: 8px; padding: 10px; font-size: .82rem; color: #334155; }
+    .compare-col h5 { margin: 0 0 8px 0; font-size: .86rem; color: #0f172a; }
+    .compare-col p { margin: 0 0 6px 0; }
+    .changed { background: #fef3c7; border-radius: 4px; padding: 2px 4px; }
+    .preview-section { border-top: 1px solid #e2e8f0; padding-top: 16px; display: flex; flex-direction: column; gap: 10px; }
+    .preview-header { display: flex; justify-content: space-between; align-items: center; }
+    .preview-image { width: 100%; max-height: 340px; object-fit: contain; border: 1px solid #e2e8f0; border-radius: 8px; background: #f8fafc; }
+    .preview-frame { width: 100%; min-height: 360px; border: 1px solid #e2e8f0; border-radius: 8px; background: #fff; }
+    .preview-fallback { border: 1px dashed #cbd5e1; border-radius: 8px; padding: 16px; color: #64748b; font-size: .9rem; background: #f8fafc; }
+    .ocr-snippet { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px; }
+    .ocr-snippet h5 { margin: 0 0 8px 0; color: #334155; font-size: .85rem; }
+    .ocr-snippet p { margin: 0; color: #475569; font-size: .85rem; line-height: 1.4; white-space: pre-wrap; }
   `]
 })
 export class EpsDocumentsComponent implements OnChanges {
@@ -336,11 +207,17 @@ export class EpsDocumentsComponent implements OnChanges {
   documents: EquipmentDocument[] = [];
   loading = false;
   uploading = false;
+  uploadProgress = 0;
   uploadError = '';
   uploadSuccess = false;
   selectedFile: File | null = null;
+  selectedFileChecksum = '';
+  duplicateChecksumDetected = false;
   dragActive = false;
   previewDoc?: EquipmentDocument;
+  compareBaseDoc?: EquipmentDocument;
+  compareTargetDoc?: EquipmentDocument;
+  compareTargetId = '';
 
   readonly uploadForm = this.fb.group({
     documentType: ['', Validators.required],
@@ -348,19 +225,23 @@ export class EpsDocumentsComponent implements OnChanges {
   });
 
   constructor(
-      private readonly fb: FormBuilder,
-      private readonly epsService: EpsService
+    private readonly fb: FormBuilder,
+    private readonly epsService: EpsService
   ) {}
 
   ngOnChanges(changes: SimpleChanges): void {
     if (changes['equipment'] && this.equipment) {
       this.loadDocuments();
-      this.uploadSuccess = false;
-      this.uploadError = '';
-      this.selectedFile = null;
+      this.resetUploadState();
       this.previewDoc = undefined;
+      this.clearCompare();
       this.uploadForm.reset({ documentType: '', extractedText: '' });
     }
+  }
+
+  get compareCandidates(): EquipmentDocument[] {
+    if (!this.compareBaseDoc) return [];
+    return this.documents.filter((d) => d.id !== this.compareBaseDoc?.id);
   }
 
   loadDocuments(): void {
@@ -369,6 +250,7 @@ export class EpsDocumentsComponent implements OnChanges {
     this.epsService.getEquipmentDocuments(this.equipment.id).subscribe({
       next: (res) => {
         this.documents = res.data;
+        this.checkDuplicateChecksum();
         this.loading = false;
       },
       error: () => {
@@ -377,11 +259,10 @@ export class EpsDocumentsComponent implements OnChanges {
     });
   }
 
-  onFileSelected(event: any): void {
-    const file = event.target.files?.[0];
-    if (file) {
-      this.selectedFile = file;
-    }
+  onFileSelected(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    const file = input.files?.[0] ?? null;
+    this.setSelectedFile(file);
   }
 
   onDragOver(event: DragEvent): void {
@@ -397,10 +278,8 @@ export class EpsDocumentsComponent implements OnChanges {
   onDrop(event: DragEvent): void {
     event.preventDefault();
     this.dragActive = false;
-    const file = event.dataTransfer?.files?.[0];
-    if (file) {
-      this.selectedFile = file;
-    }
+    const file = event.dataTransfer?.files?.[0] ?? null;
+    this.setSelectedFile(file);
   }
 
   previewDocument(doc: EquipmentDocument): void {
@@ -409,6 +288,23 @@ export class EpsDocumentsComponent implements OnChanges {
 
   closePreview(): void {
     this.previewDoc = undefined;
+  }
+
+  setCompareBase(doc: EquipmentDocument): void {
+    this.compareBaseDoc = doc;
+    this.compareTargetDoc = undefined;
+    this.compareTargetId = '';
+  }
+
+  setCompareTarget(targetId: string): void {
+    this.compareTargetId = targetId;
+    this.compareTargetDoc = this.documents.find((d) => d.id === targetId);
+  }
+
+  clearCompare(): void {
+    this.compareBaseDoc = undefined;
+    this.compareTargetDoc = undefined;
+    this.compareTargetId = '';
   }
 
   downloadUrl(doc: EquipmentDocument): string {
@@ -424,26 +320,73 @@ export class EpsDocumentsComponent implements OnChanges {
   }
 
   upload(): void {
-    if (this.uploadForm.invalid || !this.selectedFile || !this.equipment) return;
+    if (this.uploadForm.invalid || !this.selectedFile || !this.equipment || this.duplicateChecksumDetected) return;
+
     this.uploading = true;
+    this.uploadProgress = 0;
     this.uploadError = '';
     this.uploadSuccess = false;
 
     const docType = this.uploadForm.controls.documentType.value ?? '';
     const extractedText = this.uploadForm.controls.extractedText.value ?? '';
 
-    this.epsService.uploadEquipmentDocument(this.equipment.id, docType, this.selectedFile, extractedText).subscribe({
-      next: () => {
-        this.uploading = false;
-        this.uploadSuccess = true;
-        this.selectedFile = null;
-        this.uploadForm.reset({ documentType: '', extractedText: '' });
-        this.loadDocuments();
+    this.epsService.uploadEquipmentDocumentWithProgress(this.equipment.id, docType, this.selectedFile, extractedText).subscribe({
+      next: (event) => {
+        if (event.type === HttpEventType.UploadProgress) {
+          const total = event.total ?? 1;
+          this.uploadProgress = Math.max(1, Math.round((event.loaded / total) * 100));
+          return;
+        }
+        if (event.type === HttpEventType.Response) {
+          this.uploading = false;
+          this.uploadProgress = 100;
+          this.uploadSuccess = true;
+          this.selectedFile = null;
+          this.selectedFileChecksum = '';
+          this.duplicateChecksumDetected = false;
+          this.uploadForm.reset({ documentType: '', extractedText: '' });
+          this.loadDocuments();
+        }
       },
       error: (err) => {
         this.uploading = false;
+        this.uploadProgress = 0;
         this.uploadError = err?.error?.message ?? 'Failed to upload file.';
       }
     });
+  }
+
+  private resetUploadState(): void {
+    this.uploading = false;
+    this.uploadProgress = 0;
+    this.uploadError = '';
+    this.uploadSuccess = false;
+    this.selectedFile = null;
+    this.selectedFileChecksum = '';
+    this.duplicateChecksumDetected = false;
+  }
+
+  private async setSelectedFile(file: File | null): Promise<void> {
+    this.selectedFile = file;
+    this.selectedFileChecksum = '';
+    this.duplicateChecksumDetected = false;
+    if (!file) return;
+    this.selectedFileChecksum = await this.computeSha256(file);
+    this.checkDuplicateChecksum();
+  }
+
+  private checkDuplicateChecksum(): void {
+    if (!this.selectedFileChecksum) {
+      this.duplicateChecksumDetected = false;
+      return;
+    }
+    this.duplicateChecksumDetected = this.documents.some((d) => d.checksumSha256.toLowerCase() === this.selectedFileChecksum.toLowerCase());
+  }
+
+  private async computeSha256(file: File): Promise<string> {
+    const buffer = await file.arrayBuffer();
+    const hashBuffer = await crypto.subtle.digest('SHA-256', buffer);
+    const hashArray = Array.from(new Uint8Array(hashBuffer));
+    return hashArray.map((b) => b.toString(16).padStart(2, '0')).join('');
   }
 }
