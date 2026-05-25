@@ -1,4 +1,5 @@
 import { CommonModule } from '@angular/common';
+import { ActivatedRoute, Router } from '@angular/router';
 import { Component, ElementRef, HostListener, OnDestroy, OnInit } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Subject, catchError, debounceTime, distinctUntilChanged, of, switchMap, takeUntil } from 'rxjs';
@@ -110,7 +111,7 @@ interface EquipmentDraft {
       </header>
 
       <!-- KPI Dashboard Row -->
-      <section class="kpi-dashboard" *ngIf="activeTab === 'registry' && registryViewMode === 'BROWSE'">
+      <section class="kpi-dashboard" *ngIf="activeTab === 'registry' && registryViewMode === 'BROWSE' && !isDetailOnlyPage">
         <article 
           class="kpi-card" 
           *ngFor="let widget of visibleWidgets | slice:0:5" 
@@ -138,7 +139,7 @@ interface EquipmentDraft {
       </section>
 
       <!-- Navigation & Mode Tabs -->
-      <nav class="tab-navigation-bar">
+      <nav class="tab-navigation-bar" *ngIf="!isDetailOnlyPage">
         <div class="nav-left">
           <button (click)="activeTab = 'registry'" [class.active]="activeTab === 'registry'">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="nav-icon"><rect x="3" y="3" width="7" height="9"></rect><rect x="14" y="3" width="7" height="5"></rect><rect x="14" y="12" width="7" height="9"></rect><rect x="3" y="16" width="7" height="5"></rect></svg>
@@ -179,10 +180,18 @@ interface EquipmentDraft {
 
       <!-- Main Workspace Grid -->
       <main class="tab-content">
-        <div *ngIf="activeTab === 'registry'" class="registry-grid">
+        <!-- Back Navigation Bar for Detail Only Page -->
+        <div class="back-navigation-bar" *ngIf="activeTab === 'registry' && isDetailOnlyPage">
+          <button class="btn btn-secondary" (click)="goBackToRegistry()">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>
+            Back to Registry List
+          </button>
+        </div>
+
+        <div *ngIf="activeTab === 'registry'" class="registry-grid" [class.detail-only-grid]="isDetailOnlyPage">
           
-          <!-- LEFT SIDE: Controls, Toolbar & Registry Table -->
-          <div class="registry-list-section">
+          <!-- LEFT SIDE: Controls, Toolbar & Registry Table (only visible on List view or ADMIN mode) -->
+          <div class="registry-list-section" *ngIf="!isDetailOnlyPage || registryViewMode === 'ADMIN'">
             
             <!-- Quick Actions Toolbar -->
             <div class="control-toolbar">
@@ -440,9 +449,10 @@ interface EquipmentDraft {
             </section>
           </div>
 
-          <!-- RIGHT SIDE: Split View Detail Panel -->
-          <div class="registry-detail-section sticky-panel" *ngIf="registryViewMode === 'BROWSE'">
+          <!-- RIGHT SIDE: Dedicated Detail panel (visible on Detail page) -->
+          <div class="registry-detail-section sticky-panel" *ngIf="isDetailOnlyPage && registryViewMode === 'BROWSE'">
             <div class="detail-workspace-wrapper" *ngIf="selectedEquipment">
+              <!-- Sticky Summary Header -->
               <section class="sticky-summary card-premium">
                 <div class="summary-meta-header">
                   <span class="meta-tag">{{ selectedEquipment.category }}</span>
@@ -509,22 +519,12 @@ interface EquipmentDraft {
                 <ng-container [ngTemplateOutlet]="selectedWorkspaceTpl"></ng-container>
               </div>
             </div>
-
-            <!-- Fallback detail column placeholder -->
-            <div class="registry-detail-placeholder card-premium" *ngIf="!selectedEquipment">
-              <div class="placeholder-icon">
-                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1"><rect x="4" y="4" width="16" height="16" rx="2" ry="2"></rect><rect x="9" y="9" width="11" height="11" rx="2" ry="2"></rect></svg>
-              </div>
-              <h4>No Asset Selected</h4>
-              <p>Select a row in the registry to inspect asset metrics, parameters, and quick operations.</p>
-            </div>
           </div>
         </div>
 
         <!-- Detail workspace template when selected -->
         <ng-template #selectedWorkspaceTpl>
           <div class="workspace-area">
-            
             <!-- Feature Sub-navigation within Equipment Workspace -->
             <div class="workspace-nav-tabs">
               <div class="nav-buttons">
@@ -767,6 +767,7 @@ interface EquipmentDraft {
     </div>
   `,
   styles: [`
+
 
     /* Clean modern CSS using curated HSL Harmonies & CSS variables */
     :host {
@@ -1110,12 +1111,27 @@ interface EquipmentDraft {
       min-height: 650px;
     }
 
+    .back-navigation-bar {
+      margin-bottom: 16px;
+      display: flex;
+    }
+
     /* Layout Workspace Grid */
     .registry-grid {
       display: grid;
-      grid-template-columns: 1.15fr 0.85fr;
+      grid-template-columns: 1fr;
       gap: 24px;
       align-items: start;
+    }
+
+    .registry-grid.detail-only-grid {
+      grid-template-columns: 340px 1fr;
+    }
+
+    @media (max-width: 1100px) {
+      .registry-grid.detail-only-grid {
+        grid-template-columns: 1fr;
+      }
     }
 
     @media (max-width: 1100px) {
@@ -2333,6 +2349,7 @@ export class EpsPageComponent implements OnInit, OnDestroy {
   newFilterScope: SavedFilter['scope'] = 'PERSONAL';
 
   activeTab: 'registry' | 'requests' | 'operations' | 'governance' = 'registry';
+  isDetailOnlyPage = false;
   detailTabs: EquipmentDetailTab[] = ['OVERVIEW', 'DOCUMENTS', 'MAINTENANCE', 'TICKETS', 'INVENTORY', 'HISTORY', 'COMPLIANCE', 'RELIABILITY'];
   detailTab: EquipmentDetailTab = 'OVERVIEW';
   currentRole: WorkflowRole = 'MANAGER';
@@ -2419,7 +2436,9 @@ export class EpsPageComponent implements OnInit, OnDestroy {
   constructor(
     private readonly fb: FormBuilder,
     private readonly epsService: EpsService,
-    private readonly hostElement: ElementRef<HTMLElement>
+    private readonly hostElement: ElementRef<HTMLElement>,
+    private readonly route: ActivatedRoute,
+    private readonly router: Router
   ) {}
 
   @HostListener('document:keydown.escape')
@@ -2488,6 +2507,21 @@ export class EpsPageComponent implements OnInit, OnDestroy {
         this.totalRegistryPages = Math.max(1, res.data.totalPages);
         this.registryLoading = false;
       });
+    this.route.paramMap.pipe(takeUntil(this.destroy$)).subscribe((params) => {
+      const id = params.get('id');
+      if (id) {
+        this.isDetailOnlyPage = true;
+        if (this.equipment.length > 0) {
+          const found = this.equipment.find((e) => e.id === id);
+          if (found) {
+            this.loadSelectedEquipmentDetails(found);
+          }
+        }
+      } else {
+        this.isDetailOnlyPage = false;
+        this.selectedEquipment = undefined;
+      }
+    });
     this.loadCategories();
     this.load();
   }
@@ -2671,6 +2705,10 @@ export class EpsPageComponent implements OnInit, OnDestroy {
   }
 
   selectEquipment(item: Equipment): void {
+    this.router.navigate(['/eps', item.id]);
+  }
+
+  loadSelectedEquipmentDetails(item: Equipment): void {
     this.selectedEquipment = item;
     this.editError = '';
     this.showEditPanel = false;
@@ -2691,6 +2729,10 @@ export class EpsPageComponent implements OnInit, OnDestroy {
     if (this.isCompactViewport) {
       this.purposeTab = 'EQUIPMENT';
     }
+  }
+
+  goBackToRegistry(): void {
+    this.router.navigate(['/eps']);
   }
 
   private syncViewportMode(): void {

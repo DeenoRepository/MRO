@@ -8,6 +8,7 @@ import { SrsPageComponent } from './features/srs/ui/srs-page.component';
 export const routes: Routes = [
   { path: '', pathMatch: 'full', redirectTo: 'eps' },
   { path: 'eps', component: EpsPageComponent },
+  { path: 'eps/:id', component: EpsPageComponent },
   { path: 'mms', component: MmsPageComponent },
   { path: 'wms', component: WmsPageComponent },
   { path: 'srs', component: SrsPageComponent },
