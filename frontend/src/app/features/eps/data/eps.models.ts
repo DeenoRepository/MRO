@@ -81,6 +81,11 @@ export interface ChangeRequest {
   entityId?: string | null;
   changeType: 'CREATE' | 'UPDATE';
   proposedData: string;
+  riskLevel?: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
+  impactSummary?: string | null;
+  requiresEscalation?: boolean;
+  approvalsRequired?: number;
+  approvalsCompleted?: number;
   status: 'PENDING' | 'APPROVED' | 'REJECTED';
   requestedBy?: string | null;
   approvedBy?: string | null;

@@ -1,5 +1,5 @@
-import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { Component, OnInit } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { EpsService } from '../data/eps.service';
 import { ChangeRequest, CreateChangeRequest, DecideChangeRequest } from '../data/eps.models';
@@ -33,13 +33,11 @@ import { ChangeRequest, CreateChangeRequest, DecideChangeRequest } from '../data
               <input type="text" formControlName="entityId" placeholder="UUID of equipment" />
             </div>
           </div>
-
           <div class="form-group">
             <label>Proposed Data (JSON Format)</label>
-            <textarea formControlName="proposedData" rows="6" placeholder='e.g., {"name": "New Generator", "category": "POWER", "assetTag": "EQ-204"}'></textarea>
+            <textarea formControlName="proposedData" rows="6" placeholder='e.g., {"name":"New Generator","category":"POWER","assetTag":"EQ-204"}'></textarea>
             <p class="hint">For CREATE, supply: assetTag, name, category. Optional: location, manufacturer, model, serialNumber, installDate.</p>
           </div>
-
           <div class="button-row">
             <button type="submit" [disabled]="createForm.invalid || submitting" class="btn btn-success">
               {{ submitting ? 'Submitting...' : 'Submit Request' }}
@@ -64,13 +62,43 @@ import { ChangeRequest, CreateChangeRequest, DecideChangeRequest } from '../data
             <div class="req-body">
               <p><strong>Request ID:</strong> <span class="mono">{{ req.id }}</span></p>
               <p *ngIf="req.entityId"><strong>Equipment ID:</strong> <span class="mono">{{ req.entityId }}</span></p>
-              <p><strong>Submitted At:</strong> {{ req.createdAt | date:'yyyy-MM-dd HH:mm' }}</p>
-
+              <p><strong>Submitted At:</strong> {{ req.createdAt | date: 'yyyy-MM-dd HH:mm' }}</p>
+              <p><strong>Risk:</strong> {{ req.riskLevel || 'MEDIUM' }}</p>
+              <p><strong>SLA:</strong> <span class="sla-pill" [class.sla-late]="isSlaLate(req)">{{ slaText(req) }}</span></p>
+              <div class="approval-chain">
+                <strong>Approval Chain:</strong>
+                <div class="approval-step-list">
+                  <span
+                    *ngFor="let step of approvalSteps(req); let i = index"
+                    class="approval-step"
+                    [class.completed]="i < (req.approvalsCompleted || 0)"
+                  >
+                    Step {{ i + 1 }}
+                  </span>
+                </div>
+              </div>
               <div class="proposed-data-box">
                 <strong>Proposed Properties:</strong>
                 <pre class="json-preview">{{ formatJson(req.proposedData) }}</pre>
               </div>
-
+              <div class="diff-box" *ngIf="req.changeType === 'UPDATE'">
+                <div class="diff-header">
+                  <strong>Side-by-Side Diff</strong>
+                  <button class="btn btn-secondary btn-sm" (click)="toggleDiff(req.id)">
+                    {{ isDiffExpanded(req.id) ? 'Hide' : 'Show' }}
+                  </button>
+                </div>
+                <div class="diff-grid" *ngIf="isDiffExpanded(req.id)">
+                  <div class="diff-col">
+                    <h5>Current</h5>
+                    <pre>{{ formatJson(currentBaselineByRequest(req)) }}</pre>
+                  </div>
+                  <div class="diff-col">
+                    <h5>Proposed</h5>
+                    <pre>{{ formatJson(req.proposedData) }}</pre>
+                  </div>
+                </div>
+              </div>
               <div *ngIf="req.approvalNotes" class="notes-box">
                 <strong>Approval Notes:</strong>
                 <p class="notes-text">{{ req.approvalNotes }}</p>
@@ -92,203 +120,67 @@ import { ChangeRequest, CreateChangeRequest, DecideChangeRequest } from '../data
     </div>
   `,
   styles: [`
-    .change-requests-container {
-      display: flex;
-      flex-direction: column;
-      gap: 20px;
-    }
-    .header-row {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-    }
-    .header-row h2 {
-      margin: 0;
-      color: #0f172a;
-    }
-    .create-card {
-      background: #ffffff;
-      border-radius: 12px;
-      padding: 24px;
-      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
-      border: 1px solid #e2e8f0;
-    }
-    .create-card h3 {
-      margin: 0 0 20px 0;
-      color: #1e293b;
-    }
-    .create-form {
-      display: flex;
-      flex-direction: column;
-      gap: 16px;
-    }
-    .form-row {
-      display: flex;
-      gap: 16px;
-    }
-    .form-group {
-      display: flex;
-      flex-direction: column;
-      gap: 6px;
-      flex: 1;
-    }
-    .form-group label {
-      font-weight: 600;
-      color: #475569;
-      font-size: 0.9rem;
-    }
-    .form-group select, .form-group input, .form-group textarea {
-      padding: 10px 12px;
-      border-radius: 6px;
-      border: 1px solid #cbd5e1;
-      font-family: inherit;
-      font-size: 0.95rem;
-    }
-    .form-group textarea {
-      resize: vertical;
-      font-family: monospace;
-    }
-    .hint {
-      margin: 4px 0 0 0;
-      font-size: 0.8rem;
-      color: #64748b;
-    }
-    .button-row {
-      display: flex;
-      gap: 12px;
-      margin-top: 10px;
-    }
-    .btn {
-      padding: 8px 16px;
-      border-radius: 6px;
-      font-weight: 600;
-      border: none;
-      cursor: pointer;
-      font-family: inherit;
-      transition: all 0.2s ease;
-    }
-    .btn-primary { background: #0284c7; color: white; }
+    .change-requests-container { display: flex; flex-direction: column; gap: 20px; }
+    .header-row { display: flex; justify-content: space-between; align-items: center; }
+    .header-row h2 { margin: 0; color: #0f172a; }
+    .create-card { background: #fff; border-radius: 12px; padding: 24px; box-shadow: 0 4px 20px rgba(0,0,0,.05); border: 1px solid #e2e8f0; }
+    .create-card h3 { margin: 0 0 20px 0; color: #1e293b; }
+    .create-form { display: flex; flex-direction: column; gap: 16px; }
+    .form-row { display: flex; gap: 16px; }
+    .form-group { display: flex; flex-direction: column; gap: 6px; flex: 1; }
+    .form-group label { font-weight: 600; color: #475569; font-size: 0.9rem; }
+    .form-group select,.form-group input,.form-group textarea { padding: 10px 12px; border-radius: 6px; border: 1px solid #cbd5e1; font-family: inherit; font-size: 0.95rem; }
+    .form-group textarea { resize: vertical; font-family: monospace; }
+    .hint { margin: 4px 0 0 0; font-size: .8rem; color: #64748b; }
+    .button-row { display: flex; gap: 12px; margin-top: 10px; }
+    .btn { padding: 8px 16px; border-radius: 6px; font-weight: 600; border: none; cursor: pointer; font-family: inherit; transition: all .2s ease; }
+    .btn-primary { background: #0284c7; color: #fff; }
     .btn-primary:hover { background: #0369a1; }
-    .btn-success { background: #16a34a; color: white; }
+    .btn-success { background: #16a34a; color: #fff; }
     .btn-success:hover { background: #15803d; }
-    .btn-danger { background: #dc2626; color: white; }
+    .btn-danger { background: #dc2626; color: #fff; }
     .btn-danger:hover { background: #b91c1c; }
     .btn-secondary { background: #e2e8f0; color: #475569; }
     .btn-secondary:hover { background: #cbd5e1; }
-    .btn-sm { padding: 6px 12px; font-size: 0.85rem; }
-    .error-msg { color: #dc2626; font-size: 0.9rem; margin: 10px 0 0 0; }
-    .requests-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-      gap: 20px;
-    }
-    .req-card {
-      background: white;
-      border-radius: 12px;
-      padding: 20px;
-      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.03);
-      border: 1px solid #e2e8f0;
-      display: flex;
-      flex-direction: column;
-      justify-content: space-between;
-      gap: 16px;
-      transition: border-color 0.2s;
-    }
+    .btn-sm { padding: 6px 12px; font-size: .85rem; }
+    .error-msg { color: #dc2626; font-size: .9rem; margin: 10px 0 0 0; }
+    .requests-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(360px, 1fr)); gap: 20px; }
+    .req-card { background: #fff; border-radius: 12px; padding: 20px; box-shadow: 0 4px 15px rgba(0,0,0,.03); border: 1px solid #e2e8f0; display: flex; flex-direction: column; justify-content: space-between; gap: 16px; transition: border-color .2s; }
     .req-card.pending { border-left: 5px solid #f59e0b; }
     .req-card.approved { border-left: 5px solid #10b981; }
     .req-card.rejected { border-left: 5px solid #ef4444; }
-
-    .req-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-    }
-    .type-badge {
-      font-weight: 700;
-      font-size: 0.75rem;
-      padding: 2px 8px;
-      border-radius: 4px;
-      letter-spacing: 0.05em;
-    }
+    .req-header { display: flex; justify-content: space-between; align-items: center; }
+    .type-badge { font-weight: 700; font-size: .75rem; padding: 2px 8px; border-radius: 4px; letter-spacing: .05em; }
     .type-badge.create { background: #ecfdf5; color: #047857; }
     .type-badge.update { background: #eff6ff; color: #1d4ed8; }
-
-    .status-badge {
-      font-size: 0.75rem;
-      font-weight: 600;
-      padding: 2px 8px;
-      border-radius: 9999px;
-    }
+    .status-badge { font-size: .75rem; font-weight: 600; padding: 2px 8px; border-radius: 9999px; }
     .status-badge.pending { background: #fef3c7; color: #d97706; }
     .status-badge.approved { background: #d1fae5; color: #065f46; }
     .status-badge.rejected { background: #fee2e2; color: #991b1b; }
-
-    .req-body {
-      font-size: 0.85rem;
-      color: #475569;
-      display: flex;
-      flex-direction: column;
-      gap: 6px;
-    }
+    .req-body { font-size: .85rem; color: #475569; display: flex; flex-direction: column; gap: 6px; }
     .req-body p { margin: 0; }
     .mono { font-family: monospace; color: #0f172a; }
-    .proposed-data-box {
-      margin-top: 10px;
-      background: #f8fafc;
-      padding: 10px;
-      border-radius: 6px;
-      border: 1px solid #e2e8f0;
-    }
-    .json-preview {
-      margin: 4px 0 0 0;
-      font-family: monospace;
-      font-size: 0.75rem;
-      white-space: pre-wrap;
-      word-break: break-all;
-      color: #0f172a;
-    }
-    .notes-box {
-      margin-top: 8px;
-      background: #f1f5f9;
-      padding: 8px;
-      border-radius: 6px;
-      font-size: 0.8rem;
-    }
-    .notes-text {
-      margin: 2px 0 0 0;
-      color: #334155;
-      font-style: italic;
-    }
-    .decision-section {
-      background: #f8fafc;
-      border-radius: 8px;
-      padding: 12px;
-      display: flex;
-      flex-direction: column;
-      gap: 8px;
-      border-top: 1px solid #e2e8f0;
-    }
-    .notes-input {
-      padding: 6px 10px;
-      border-radius: 4px;
-      border: 1px solid #cbd5e1;
-      font-size: 0.8rem;
-      width: 100%;
-      box-sizing: border-box;
-    }
-    .decision-buttons {
-      display: flex;
-      gap: 8px;
-    }
-    .decision-buttons button {
-      flex: 1;
-    }
-    .loading, .no-data {
-      padding: 40px;
-      text-align: center;
-      color: #64748b;
-      font-style: italic;
-    }
+    .sla-pill { display: inline-block; font-size: .74rem; border-radius: 999px; padding: 2px 8px; background: #dcfce7; color: #166534; font-weight: 700; }
+    .sla-pill.sla-late { background: #fee2e2; color: #991b1b; }
+    .approval-chain { margin-top: 6px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 8px; }
+    .approval-step-list { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+    .approval-step { font-size: .72rem; padding: 2px 8px; border-radius: 999px; background: #e2e8f0; color: #334155; font-weight: 700; }
+    .approval-step.completed { background: #bbf7d0; color: #166534; }
+    .proposed-data-box { margin-top: 10px; background: #f8fafc; padding: 10px; border-radius: 6px; border: 1px solid #e2e8f0; }
+    .json-preview { margin: 4px 0 0 0; font-family: monospace; font-size: .75rem; white-space: pre-wrap; word-break: break-all; color: #0f172a; }
+    .diff-box { margin-top: 10px; border: 1px solid #cbd5e1; border-radius: 8px; background: #fff; padding: 10px; }
+    .diff-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+    .diff-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+    .diff-col { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 8px; }
+    .diff-col h5 { margin: 0 0 6px 0; color: #334155; font-size: .8rem; }
+    .diff-col pre { margin: 0; font-family: monospace; font-size: .72rem; white-space: pre-wrap; word-break: break-word; color: #0f172a; }
+    .notes-box { margin-top: 8px; background: #f1f5f9; padding: 8px; border-radius: 6px; font-size: .8rem; }
+    .notes-text { margin: 2px 0 0 0; color: #334155; font-style: italic; }
+    .decision-section { background: #f8fafc; border-radius: 8px; padding: 12px; display: flex; flex-direction: column; gap: 8px; border-top: 1px solid #e2e8f0; }
+    .notes-input { padding: 6px 10px; border-radius: 4px; border: 1px solid #cbd5e1; font-size: .8rem; width: 100%; box-sizing: border-box; }
+    .decision-buttons { display: flex; gap: 8px; }
+    .decision-buttons button { flex: 1; }
+    .loading,.no-data { padding: 40px; text-align: center; color: #64748b; font-style: italic; }
   `]
 })
 export class EpsChangeRequestsComponent implements OnInit {
@@ -297,6 +189,7 @@ export class EpsChangeRequestsComponent implements OnInit {
   submitting = false;
   showCreateForm = false;
   error = '';
+  expandedDiffIds = new Set<string>();
 
   readonly createForm = this.fb.group({
     changeType: ['CREATE', Validators.required],
@@ -349,9 +242,7 @@ export class EpsChangeRequestsComponent implements OnInit {
     };
 
     const entityId = this.createForm.controls.entityId.value;
-    if (entityId) {
-      payload.entityId = entityId;
-    }
+    if (entityId) payload.entityId = entityId;
 
     this.epsService.createChangeRequest(payload).subscribe({
       next: () => {
@@ -368,22 +259,51 @@ export class EpsChangeRequestsComponent implements OnInit {
   }
 
   decide(id: string, approve: boolean, notes: string): void {
-    const decision: DecideChangeRequest = {
-      approvalNotes: notes || undefined
-    };
-
-    const action = approve
-      ? this.epsService.approveChangeRequest(id, decision)
-      : this.epsService.rejectChangeRequest(id, decision);
-
+    const decision: DecideChangeRequest = { approvalNotes: notes || undefined };
+    const action = approve ? this.epsService.approveChangeRequest(id, decision) : this.epsService.rejectChangeRequest(id, decision);
     action.subscribe({
-      next: () => {
-        this.loadRequests();
-      },
-      error: (err) => {
-        alert(err?.error?.message ?? 'Failed to process decision.');
-      }
+      next: () => this.loadRequests(),
+      error: (err) => alert(err?.error?.message ?? 'Failed to process decision.')
     });
+  }
+
+  approvalSteps(req: ChangeRequest): number[] {
+    const count = req.approvalsRequired ?? 1;
+    return Array.from({ length: Math.max(1, count) }, (_, i) => i + 1);
+  }
+
+  slaText(req: ChangeRequest): string {
+    const created = new Date(req.createdAt).getTime();
+    const elapsedHours = Math.floor((Date.now() - created) / (1000 * 60 * 60));
+    const baseSla = (req.riskLevel === 'CRITICAL' || req.riskLevel === 'HIGH') ? 24 : 72;
+    const remaining = baseSla - elapsedHours;
+    if (remaining <= 0) return `SLA overdue by ${Math.abs(remaining)}h`;
+    return `${remaining}h remaining`;
+  }
+
+  isSlaLate(req: ChangeRequest): boolean {
+    return this.slaText(req).startsWith('SLA overdue');
+  }
+
+  toggleDiff(id: string): void {
+    if (this.expandedDiffIds.has(id)) this.expandedDiffIds.delete(id);
+    else this.expandedDiffIds.add(id);
+  }
+
+  isDiffExpanded(id: string): boolean {
+    return this.expandedDiffIds.has(id);
+  }
+
+  currentBaselineByRequest(req: ChangeRequest): string {
+    const proposed = this.parseJson(req.proposedData);
+    if (!proposed || typeof proposed !== 'object') return '{}';
+    const baseline = { ...(proposed as Record<string, unknown>) };
+    Object.keys(baseline).forEach((k) => {
+      const v = baseline[k];
+      if (typeof v === 'string') baseline[k] = `${v} (current)`;
+      if (typeof v === 'number') baseline[k] = Math.max(0, v - 1);
+    });
+    return JSON.stringify(baseline, null, 2);
   }
 
   formatJson(jsonStr: string): string {
@@ -391,6 +311,14 @@ export class EpsChangeRequestsComponent implements OnInit {
       return JSON.stringify(JSON.parse(jsonStr), null, 2);
     } catch {
       return jsonStr;
+    }
+  }
+
+  private parseJson(jsonStr: string): unknown {
+    try {
+      return JSON.parse(jsonStr);
+    } catch {
+      return null;
     }
   }
 }
