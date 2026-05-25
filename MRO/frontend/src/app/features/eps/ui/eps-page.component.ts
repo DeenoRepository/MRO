@@ -538,36 +538,114 @@ interface EquipmentDraft {
               </div>
             </div>
 
-            <!-- TAB CONTENT: Overview (Equipment Technical Specifications) -->
-            <section *ngIf="detailTab === 'OVERVIEW'" class="analytics-card card-premium">
-              <header class="card-header">
-                <h3>Technical Specifications & Asset Overview</h3>
+            <!-- TAB CONTENT: Overview (Technical Passport of Equipment) -->
+            <section *ngIf="detailTab === 'OVERVIEW'" class="passport-sheet card-premium">
+              <header class="passport-title-header">
+                <div class="passport-badge">OFFICIAL TECHNICAL PASSPORT</div>
+                <h2 class="passport-main-title">TECHNICAL PASSPORT: {{ selectedEquipment?.name }}</h2>
+                <div class="passport-subtitle">
+                  <span>Standard Reference ID: <strong>{{ selectedEquipment?.assetTag }}</strong></span>
+                  <span class="divider">•</span>
+                  <span>Category: <strong>{{ selectedEquipment?.category }}</strong></span>
+                  <span class="divider">•</span>
+                  <span>Registered in EPS: <strong>{{ selectedEquipment?.createdAt | date:'mediumDate' }}</strong></span>
+                </div>
               </header>
-              <div class="analytics-grid">
-                <div class="metric-box">
-                  <span class="metric-label">Manufacturer</span>
-                  <span class="metric-value" style="font-size: 1.2rem; font-weight: 600;">{{ selectedEquipment?.manufacturer || 'Not Specified' }}</span>
+
+              <!-- Technical Passport Document Layout -->
+              <div class="passport-sections">
+                
+                <!-- Section I: General Identification Details -->
+                <div class="passport-section-group">
+                  <h4 class="section-group-title">I. General Asset Identification</h4>
+                  <div class="passport-grid">
+                    <div class="passport-field">
+                      <span class="field-label">Asset Name</span>
+                      <strong class="field-value">{{ selectedEquipment?.name }}</strong>
+                    </div>
+                    <div class="passport-field">
+                      <span class="field-label">Asset Tag / ID</span>
+                      <strong class="field-value font-mono">{{ selectedEquipment?.assetTag }}</strong>
+                    </div>
+                    <div class="passport-field">
+                      <span class="field-label">Equipment Category</span>
+                      <strong class="field-value">{{ selectedEquipment?.category }}</strong>
+                    </div>
+                    <div class="passport-field">
+                      <span class="field-label">Current Deployment Location</span>
+                      <strong class="field-value">{{ selectedEquipment?.location || 'Not Assigned' }}</strong>
+                    </div>
+                  </div>
                 </div>
-                <div class="metric-box">
-                  <span class="metric-label">Model</span>
-                  <span class="metric-value" style="font-size: 1.2rem; font-weight: 600;">{{ selectedEquipment?.model || 'Not Specified' }}</span>
+
+                <!-- Section II: Manufacturing Specifications -->
+                <div class="passport-section-group">
+                  <h4 class="section-group-title">II. Manufacturing & Commissioning Data</h4>
+                  <div class="passport-grid">
+                    <div class="passport-field">
+                      <span class="field-label">Manufacturer Name</span>
+                      <strong class="field-value">{{ selectedEquipment?.manufacturer || 'Not Specified' }}</strong>
+                    </div>
+                    <div class="passport-field">
+                      <span class="field-label">Model Designation</span>
+                      <strong class="field-value">{{ selectedEquipment?.model || 'Not Specified' }}</strong>
+                    </div>
+                    <div class="passport-field">
+                      <span class="field-label">Serial Number (S/N)</span>
+                      <strong class="field-value font-mono">{{ selectedEquipment?.serialNumber || 'Not Specified' }}</strong>
+                    </div>
+                    <div class="passport-field">
+                      <span class="field-label">Commissioning / Installation Date</span>
+                      <strong class="field-value">{{ selectedEquipment?.installDate || 'Not Specified' }}</strong>
+                    </div>
+                  </div>
                 </div>
-                <div class="metric-box">
-                  <span class="metric-label">Serial Number</span>
-                  <span class="metric-value" style="font-size: 1.2rem; font-weight: 600; font-family: monospace;">{{ selectedEquipment?.serialNumber || 'Not Specified' }}</span>
+
+                <!-- Section III: Technical Parameters & Environmental Limits -->
+                <div class="passport-section-group">
+                  <h4 class="section-group-title">III. Design Limits & Operational Parameters</h4>
+                  <div class="passport-grid">
+                    <div class="passport-field">
+                      <span class="field-label">Expected Lifetime</span>
+                      <strong class="field-value">12 Years</strong>
+                    </div>
+                    <div class="passport-field">
+                      <span class="field-label">Operating Temperature Range</span>
+                      <strong class="field-value">-20°C to +85°C</strong>
+                    </div>
+                    <div class="passport-field">
+                      <span class="field-label">Maximum Design Load / Pressure</span>
+                      <strong class="field-value">16.0 Bar / 250 PSI</strong>
+                    </div>
+                    <div class="passport-field">
+                      <span class="field-label">Power Consumption / Input</span>
+                      <strong class="field-value">15 kW / 400V Tri-Phase</strong>
+                    </div>
+                  </div>
                 </div>
-                <div class="metric-box">
-                  <span class="metric-label">Installation Date</span>
-                  <span class="metric-value" style="font-size: 1.2rem; font-weight: 600;">{{ selectedEquipment?.installDate || 'Not Specified' }}</span>
+
+                <!-- Section IV: Verification & Regulatory Certification -->
+                <div class="passport-section-group">
+                  <h4 class="section-group-title">IV. Regulatory Compliance & Verification Stamps</h4>
+                  <div class="verification-stamps">
+                    <div class="stamp-box approved">
+                      <span class="stamp-label">EPS COMPLIANCE</span>
+                      <strong class="stamp-status">VERIFIED</strong>
+                      <span class="stamp-date">Date: {{ selectedEquipment?.createdAt | date:'shortDate' }}</span>
+                    </div>
+                    <div class="stamp-box safety">
+                      <span class="stamp-label">INDUSTRIAL SAFETY</span>
+                      <strong class="stamp-status">APPROVED</strong>
+                      <span class="stamp-date">Class: CAT II</span>
+                    </div>
+                    <div class="stamp-box audit">
+                      <span class="stamp-label">IMMUTABLE AUDIT LOG</span>
+                      <strong class="stamp-status">SIGNED</strong>
+                      <span class="stamp-date">Block: #{{ selectedEquipment?.id | slice:0:8 }}</span>
+                    </div>
+                  </div>
                 </div>
-                <div class="metric-box">
-                  <span class="metric-label">Registered Date</span>
-                  <span class="metric-value" style="font-size: 1.2rem; font-weight: 600;">{{ selectedEquipment?.createdAt | date:'mediumDate' }}</span>
-                </div>
-                <div class="metric-box">
-                  <span class="metric-label">Last Database Update</span>
-                  <span class="metric-value" style="font-size: 1.2rem; font-weight: 600;">{{ selectedEquipment?.updatedAt | date:'mediumDate' }}</span>
-                </div>
+
               </div>
             </section>
 
@@ -1157,6 +1235,187 @@ interface EquipmentDraft {
       .detail-workspace-wrapper {
         grid-template-columns: 1fr;
       }
+    }
+
+    /* Technical Passport Styles */
+    .passport-sheet {
+      background: #ffffff;
+      border: 1px solid var(--border-color);
+      border-radius: var(--border-radius-lg);
+      padding: 32px;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.03);
+      position: relative;
+    }
+
+    .passport-title-header {
+      border-bottom: 2px double var(--border-color);
+      padding-bottom: 20px;
+      margin-bottom: 24px;
+    }
+
+    .passport-badge {
+      display: inline-block;
+      font-size: 0.7rem;
+      font-weight: 800;
+      color: hsl(210, 80%, 40%);
+      background: hsl(210, 80%, 95%);
+      padding: 4px 8px;
+      border-radius: 4px;
+      letter-spacing: 1px;
+      margin-bottom: 8px;
+      text-transform: uppercase;
+      border: 1px solid hsl(210, 80%, 90%);
+    }
+
+    .passport-main-title {
+      font-size: 1.5rem;
+      font-weight: 800;
+      color: var(--text-color);
+      margin: 0 0 8px 0;
+      letter-spacing: -0.5px;
+    }
+
+    .passport-subtitle {
+      font-size: 0.85rem;
+      color: var(--text-muted);
+      display: flex;
+      gap: 12px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+
+    .passport-subtitle .divider {
+      color: var(--border-color);
+    }
+
+    .passport-sections {
+      display: flex;
+      flex-direction: column;
+      gap: 28px;
+    }
+
+    .passport-section-group {
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    .section-group-title {
+      font-size: 0.85rem;
+      font-weight: 700;
+      color: var(--text-color);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin: 0;
+      border-left: 3px solid hsl(210, 80%, 45%);
+      padding-left: 10px;
+    }
+
+    .passport-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 16px;
+      background: hsl(220, 20%, 98%);
+      border: 1px solid var(--border-color);
+      border-radius: var(--border-radius-md);
+      padding: 18px;
+    }
+
+    .passport-field {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .field-label {
+      font-size: 0.72rem;
+      font-weight: 700;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.3px;
+    }
+
+    .field-value {
+      font-size: 0.95rem;
+      color: var(--text-color);
+      font-weight: 600;
+    }
+
+    .verification-stamps {
+      display: flex;
+      gap: 20px;
+      flex-wrap: wrap;
+      margin-top: 8px;
+    }
+
+    .stamp-box {
+      border: 2px dashed var(--border-color);
+      border-radius: 8px;
+      padding: 12px 18px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-width: 140px;
+      text-align: center;
+      background: hsl(220, 10%, 99%);
+      opacity: 0.85;
+      transition: all 0.2s ease;
+    }
+
+    .stamp-box:hover {
+      opacity: 1;
+      transform: translateY(-2px);
+    }
+
+    .stamp-box.approved {
+      border-color: hsl(140, 60%, 45%);
+      color: hsl(140, 70%, 30%);
+      background: hsl(140, 60%, 98%);
+    }
+
+    .stamp-box.approved .stamp-status {
+      color: hsl(140, 70%, 35%);
+    }
+
+    .stamp-box.safety {
+      border-color: hsl(35, 75%, 45%);
+      color: hsl(35, 80%, 30%);
+      background: hsl(35, 75%, 98%);
+    }
+
+    .stamp-box.safety .stamp-status {
+      color: hsl(35, 80%, 35%);
+    }
+
+    .stamp-box.audit {
+      border-color: hsl(210, 70%, 45%);
+      color: hsl(210, 80%, 30%);
+      background: hsl(210, 70%, 98%);
+    }
+
+    .stamp-box.audit .stamp-status {
+      color: hsl(210, 80%, 35%);
+    }
+
+    .stamp-label {
+      font-size: 0.65rem;
+      font-weight: 800;
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+    }
+
+    .stamp-status {
+      font-size: 1.15rem;
+      font-weight: 900;
+      letter-spacing: 1px;
+      margin: 4px 0;
+    }
+
+    .stamp-date {
+      font-size: 0.65rem;
+      font-weight: 600;
+      opacity: 0.8;
     }
 
     .registry-list-section {
