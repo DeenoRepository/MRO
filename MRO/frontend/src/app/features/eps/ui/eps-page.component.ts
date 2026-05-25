@@ -493,7 +493,10 @@ interface EquipmentDraft {
                 
                 <!-- Section I: General Identification Details -->
                 <div class="passport-section-group">
-                  <h4 class="section-group-title">I. General Asset Identification</h4>
+                  <h4 class="section-group-title">
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="section-icon"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
+                    I. General Asset Identification
+                  </h4>
                   <div class="passport-grid">
                     <div class="passport-field">
                       <span class="field-label">Asset Name</span>
@@ -516,7 +519,10 @@ interface EquipmentDraft {
 
                 <!-- Section II: Manufacturing Specifications -->
                 <div class="passport-section-group">
-                  <h4 class="section-group-title">II. Manufacturing & Commissioning Data</h4>
+                  <h4 class="section-group-title">
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="section-icon"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+                    II. Manufacturing & Commissioning Data
+                  </h4>
                   <div class="passport-grid">
                     <div class="passport-field">
                       <span class="field-label">Manufacturer Name</span>
@@ -539,7 +545,10 @@ interface EquipmentDraft {
 
                 <!-- Section III: Technical Parameters & Environmental Limits -->
                 <div class="passport-section-group">
-                  <h4 class="section-group-title">III. Design Limits & Operational Parameters</h4>
+                  <h4 class="section-group-title">
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="section-icon"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="16"></line><line x1="8" y1="12" x2="16" y2="12"></line></svg>
+                    III. Design Limits & Operational Parameters
+                  </h4>
                   <div class="passport-grid">
                     <div class="passport-field">
                       <span class="field-label">Expected Lifetime</span>
@@ -562,7 +571,10 @@ interface EquipmentDraft {
 
                 <!-- Section IV: Verification & Regulatory Certification -->
                 <div class="passport-section-group">
-                  <h4 class="section-group-title">IV. Regulatory Compliance & Verification Stamps</h4>
+                  <h4 class="section-group-title">
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="section-icon"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>
+                    IV. Regulatory Compliance & Verification Stamps
+                  </h4>
                   <div class="verification-stamps">
                     <div class="stamp-box approved">
                       <span class="stamp-label">EPS COMPLIANCE</span>
@@ -1236,6 +1248,9 @@ interface EquipmentDraft {
     }
 
     .section-group-title {
+      display: flex;
+      align-items: center;
+      gap: 8px;
       font-size: 0.8rem;
       font-weight: 600;
       color: hsl(220, 80%, 40%);
@@ -1244,6 +1259,11 @@ interface EquipmentDraft {
       margin: 0;
       padding-bottom: 6px;
       border-bottom: 1px solid hsla(220, 15%, 85%, 0.4);
+    }
+
+    .section-icon {
+      color: hsl(220, 80%, 50%);
+      opacity: 0.85;
     }
 
     .passport-grid {
@@ -1257,6 +1277,17 @@ interface EquipmentDraft {
       display: flex;
       flex-direction: column;
       gap: 2px;
+      padding: 6px 10px;
+      border-radius: var(--border-radius-sm);
+      border-left: 2.5px solid transparent;
+      background: hsla(220, 15%, 96%, 0.25);
+      transition: var(--transition-smooth);
+    }
+
+    .passport-field:hover {
+      background: hsla(220, 15%, 96%, 0.85);
+      border-left-color: hsl(220, 90%, 50%);
+      transform: translateX(3px);
     }
 
     .field-label {
