@@ -110,7 +110,7 @@ interface EquipmentDraft {
       </header>
 
       <!-- KPI Dashboard Row -->
-      <section class="kpi-dashboard" *ngIf="registryViewMode === 'BROWSE'">
+      <section class="kpi-dashboard" *ngIf="activeTab === 'registry' && registryViewMode === 'BROWSE'">
         <article 
           class="kpi-card" 
           *ngFor="let widget of visibleWidgets | slice:0:5" 
@@ -147,6 +147,14 @@ interface EquipmentDraft {
           <button (click)="activeTab = 'requests'" [class.active]="activeTab === 'requests'">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="nav-icon"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
             Change Requests
+          </button>
+          <button (click)="activeTab = 'operations'" [class.active]="activeTab === 'operations'">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="nav-icon"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path><circle cx="12" cy="13" r="4"></circle></svg>
+            Operations Scanner
+          </button>
+          <button (click)="activeTab = 'governance'" [class.active]="activeTab === 'governance'">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="nav-icon"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+            Governance Audit
           </button>
         </div>
         <div class="nav-right" *ngIf="activeTab === 'registry'">
@@ -192,10 +200,6 @@ interface EquipmentDraft {
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="4" y1="21" x2="4" y2="14"></line><line x1="4" y1="10" x2="4" y2="3"></line><line x1="12" y1="21" x2="12" y2="12"></line><line x1="12" y1="8" x2="12" y2="3"></line><line x1="20" y1="21" x2="20" y2="16"></line><line x1="20" y1="12" x2="20" y2="3"></line><line x1="1" y1="14" x2="7" y2="14"></line><line x1="9" y1="8" x2="15" y2="8"></line><line x1="17" y1="16" x2="23" y2="16"></line></svg>
                   Filters
                 </button>
-                <button class="btn btn-secondary" (click)="showOpsInsights = !showOpsInsights">
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path><circle cx="12" cy="13" r="4"></circle></svg>
-                  Scan Code
-                </button>
                 <button class="btn btn-secondary" (click)="runImportStub()">Import</button>
                 <button class="btn btn-secondary" (click)="exportSelectionToCsv()">Export</button>
                 <button class="btn btn-primary" (click)="openAddEquipment()">
@@ -203,22 +207,6 @@ interface EquipmentDraft {
                   Add Equipment
                 </button>
               </div>
-            </div>
-
-            <!-- Workspace Sub-tabs (Registry, Workspace, Operations, Governance) -->
-            <div class="purpose-tabs-wrapper" *ngIf="registryViewMode === 'BROWSE'">
-              <button class="purpose-tab-btn" [class.active]="purposeTab === 'REGISTRY'" (click)="setPurposeTab('REGISTRY')">
-                All Registry
-              </button>
-              <button class="purpose-tab-btn" [class.active]="purposeTab === 'EQUIPMENT'" (click)="setPurposeTab('EQUIPMENT')" [disabled]="!selectedEquipment">
-                Equipment Workspace
-              </button>
-              <button class="purpose-tab-btn" [class.active]="purposeTab === 'OPERATIONS'" (click)="setPurposeTab('OPERATIONS')">
-                Operations
-              </button>
-              <button class="purpose-tab-btn" [class.active]="purposeTab === 'GOVERNANCE'" (click)="setPurposeTab('GOVERNANCE')">
-                Governance
-              </button>
             </div>
 
             <!-- Collapsible Filters Sheet -->
@@ -262,34 +250,6 @@ interface EquipmentDraft {
                     </label>
                   </div>
                 </div>
-              </div>
-            </section>
-
-            <!-- Operational Scanner Area -->
-            <section class="ops-scan-panel card-premium" *ngIf="registryViewMode === 'BROWSE' && purposeTab === 'OPERATIONS'">
-              <div class="ops-scan-header">
-                <h3>Scanner & Print Utility</h3>
-                <span>Manage physical barcodes and asset tagging</span>
-              </div>
-              <div class="qr-controls">
-                <input
-                  type="text"
-                  [value]="scannerInput"
-                  (input)="scannerInput = $any($event.target).value"
-                  placeholder="Scan code or enter asset tag / equipment ID"
-                />
-                <button class="btn btn-primary" (click)="runScannerLookup()">Scan</button>
-                <button class="btn btn-secondary" (click)="printAssetCard()" [disabled]="!selectedEquipment">
-                  Print Asset Card
-                </button>
-              </div>
-              <div class="scan-result" *ngIf="scanResultMessage">{{ scanResultMessage }}</div>
-              <div class="scan-actions" *ngIf="scannedEquipment">
-                <button class="btn btn-secondary btn-sm" (click)="handleScanAction('OPEN_EQUIPMENT')">Open Equipment</button>
-                <button class="btn btn-secondary btn-sm" (click)="handleScanAction('CREATE_TICKET')">Create Ticket</button>
-                <button class="btn btn-secondary btn-sm" (click)="handleScanAction('OPEN_WORK_ORDER')">Open Work Order</button>
-                <button class="btn btn-secondary btn-sm" (click)="handleScanAction('UPLOAD_PHOTO')">Upload Photo</button>
-                <button class="btn btn-secondary btn-sm" (click)="handleScanAction('OPEN_MANUALS')">Open Manuals</button>
               </div>
             </section>
 
@@ -385,7 +345,7 @@ interface EquipmentDraft {
             </section>
 
             <!-- Table & Filters section -->
-            <section class="table-container card-premium" *ngIf="registryViewMode === 'BROWSE' && purposeTab === 'REGISTRY'">
+            <section class="table-container card-premium" *ngIf="registryViewMode === 'BROWSE'">
               
               <!-- Saved filter tags -->
               <div class="saved-filters" *ngIf="savedFilters.length > 0">
@@ -478,133 +438,86 @@ interface EquipmentDraft {
                 <button class="btn btn-secondary btn-sm" (click)="nextPage()" [disabled]="currentPage === totalPages">Next</button>
               </div>
             </section>
-
-            <!-- Workspace selection fallback -->
-            <section class="workspace-block card-premium" *ngIf="registryViewMode === 'BROWSE' && purposeTab === 'EQUIPMENT' && !selectedEquipment">
-              <div class="empty-state-view py-12">
-                <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><line x1="9" y1="3" x2="9" y2="21"></line></svg>
-                <h3>No Asset Selected</h3>
-                <p>Open the Registry tab, select an asset row, then continue in Equipment Workspace.</p>
-              </div>
-            </section>
-
-            <!-- Embed active workspace details -->
-            <ng-container *ngIf="registryViewMode === 'BROWSE' && purposeTab === 'EQUIPMENT' && selectedEquipment" [ngTemplateOutlet]="selectedWorkspaceTpl"></ng-container>
-
-            <!-- Governance Timeline Block -->
-            <section class="timeline-card card-premium" *ngIf="registryViewMode === 'BROWSE' && purposeTab === 'GOVERNANCE'">
-              <header class="timeline-header">
-                <div class="timeline-header-title">
-                  <h3>Governance Timeline</h3>
-                  <p>Comprehensive audit log and change traceability</p>
-                </div>
-                <select [value]="timelineTypeFilter" (change)="setTimelineTypeFilter($any($event.target).value)">
-                  <option value="ALL">All events</option>
-                  <option value="MAINTENANCE">Maintenance</option>
-                  <option value="DOCUMENTS">Documents</option>
-                  <option value="STATUS">Status</option>
-                  <option value="APPROVALS">Approvals</option>
-                  <option value="TICKETS">Tickets</option>
-                  <option value="INVENTORY">Inventory</option>
-                </select>
-              </header>
-              <div class="timeline-empty" *ngIf="timelineGroups.length === 0">No events found.</div>
-              <div class="timeline-group" *ngFor="let group of timelineGroups">
-                <div class="timeline-date">{{ group.dateLabel }}</div>
-                <ul class="timeline-list">
-                  <li *ngFor="let event of group.events">
-                    <div class="timeline-dot" [attr.data-type]="event.type"></div>
-                    <div class="timeline-body">
-                      <div class="timeline-title-row">
-                        <span class="timeline-type-pill" [attr.data-type]="event.type">{{ event.type }}</span>
-                        <div class="timeline-title">{{ event.title }}</div>
-                      </div>
-                      <div class="timeline-meta">
-                        <strong>{{ event.equipmentLabel }}</strong> • {{ event.at | date: 'shortTime' }} • {{ event.actor || 'System' }}
-                        <span *ngIf="event.meta" class="meta-separator">| {{ event.meta }}</span>
-                      </div>
-                      <button class="timeline-diff-link" *ngIf="event.diffAvailable" (click)="viewTimelineDiff(event)">
-                        View diff details
-                      </button>
-                    </div>
-                  </li>
-                </ul>
-              </div>
-            </section>
           </div>
 
-          <!-- RIGHT SIDE: Sticky Detail Summary & Panel -->
-          <div class="registry-detail-section sticky-panel" *ngIf="purposeTab === 'REGISTRY' && selectedEquipment">
-            <section class="sticky-summary card-premium">
-              <div class="summary-meta-header">
-                <span class="meta-tag">{{ selectedEquipment.category }}</span>
-                <span class="status-tag" [class]="selectedEquipment.status">{{ selectedEquipment.status }}</span>
-              </div>
-              <h2 class="summary-asset-title">{{ selectedEquipment.name }}</h2>
-              <span class="summary-asset-tag">{{ selectedEquipment.assetTag }}</span>
+          <!-- RIGHT SIDE: Split View Detail Panel -->
+          <div class="registry-detail-section sticky-panel" *ngIf="registryViewMode === 'BROWSE'">
+            <div class="detail-workspace-wrapper" *ngIf="selectedEquipment">
+              <section class="sticky-summary card-premium">
+                <div class="summary-meta-header">
+                  <span class="meta-tag">{{ selectedEquipment.category }}</span>
+                  <span class="status-tag" [class]="selectedEquipment.status">{{ selectedEquipment.status }}</span>
+                </div>
+                <h2 class="summary-asset-title">{{ selectedEquipment.name }}</h2>
+                <span class="summary-asset-tag">{{ selectedEquipment.assetTag }}</span>
 
-              <div class="summary-details-grid">
-                <div class="grid-item">
-                  <span class="item-label">Location</span>
-                  <span class="item-val">{{ selectedEquipment.location || '-' }}</span>
+                <div class="summary-details-grid">
+                  <div class="grid-item">
+                    <span class="item-label">Location</span>
+                    <span class="item-val">{{ selectedEquipment.location || '-' }}</span>
+                  </div>
+                  <div class="grid-item">
+                    <span class="item-label">Criticality</span>
+                    <span class="item-val" [class.critical-high]="computeCriticality(selectedEquipment) === 'HIGH'">
+                      {{ computeCriticality(selectedEquipment) }}
+                    </span>
+                  </div>
+                  <div class="grid-item">
+                    <span class="item-label">Open Tickets</span>
+                    <span class="item-val font-semibold">{{ selectedTicketCount }}</span>
+                  </div>
+                  <div class="grid-item">
+                    <span class="item-label">Active WO</span>
+                    <span class="item-val font-semibold">{{ selectedWorkOrderCount }}</span>
+                  </div>
                 </div>
-                <div class="grid-item">
-                  <span class="item-label">Criticality</span>
-                  <span class="item-val" [class.critical-high]="computeCriticality(selectedEquipment) === 'HIGH'">
-                    {{ computeCriticality(selectedEquipment) }}
-                  </span>
-                </div>
-                <div class="grid-item">
-                  <span class="item-label">Open Tickets</span>
-                  <span class="item-val font-semibold">{{ selectedTicketCount }}</span>
-                </div>
-                <div class="grid-item">
-                  <span class="item-label">Active WO</span>
-                  <span class="item-val font-semibold">{{ selectedWorkOrderCount }}</span>
-                </div>
-              </div>
 
-              <div class="context-actions">
-                <button class="btn btn-primary" (click)="setPurposeTab('EQUIPMENT')">Open Workspace</button>
-                <button class="btn btn-secondary btn-sm" (click)="openQuickAction('ticket')">Create Ticket</button>
-                <button class="btn btn-secondary btn-sm" (click)="openQuickAction('workorder')">Open WO</button>
-                <button class="btn btn-secondary btn-sm" (click)="openQuickAction('manuals')">Manuals</button>
-                <button class="btn btn-secondary btn-sm w-full mt-2" (click)="showEditPanel = !showEditPanel">
-                  {{ showEditPanel ? 'Cancel Edit' : 'Edit Fields' }}
-                </button>
-              </div>
-            </section>
-
-            <!-- Mini Quick Edit Card -->
-            <section class="quick-edit-card card-premium mt-4" *ngIf="showEditPanel">
-              <header class="edit-header">
-                <h3>Quick Edit Asset</h3>
-              </header>
-              <form [formGroup]="editForm" (ngSubmit)="saveEquipmentEdit()">
-                <div class="edit-form-fields">
-                  <label><span>Name</span><input type="text" formControlName="name" /></label>
-                  <label>
-                    <span>Category</span>
-                    <select formControlName="category">
-                      <option *ngFor="let c of activeCategories" [value]="c.code">{{ c.code }}</option>
-                    </select>
-                  </label>
-                  <label><span>Location</span><input type="text" formControlName="location" /></label>
-                  <button class="btn btn-primary btn-sm w-full mt-2" type="submit" [disabled]="editSubmitting || editForm.invalid || !editForm.dirty">
-                    {{ editSubmitting ? 'Saving...' : 'Save' }}
+                <div class="context-actions">
+                  <button class="btn btn-secondary btn-sm" (click)="openQuickAction('ticket')">Create Ticket</button>
+                  <button class="btn btn-secondary btn-sm" (click)="openQuickAction('workorder')">Open WO</button>
+                  <button class="btn btn-secondary btn-sm" (click)="openQuickAction('manuals')">Manuals</button>
+                  <button class="btn btn-secondary btn-sm" (click)="showEditPanel = !showEditPanel">
+                    {{ showEditPanel ? 'Cancel Edit' : 'Edit Fields' }}
                   </button>
                 </div>
-              </form>
-            </section>
-          </div>
+              </section>
 
-          <!-- Fallback detail column placeholder -->
-          <div class="registry-detail-placeholder card-premium" *ngIf="purposeTab === 'REGISTRY' && !selectedEquipment">
-            <div class="placeholder-icon">
-              <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1"><rect x="4" y="4" width="16" height="16" rx="2" ry="2"></rect><rect x="9" y="9" width="11" height="11" rx="2" ry="2"></rect></svg>
+              <!-- Mini Quick Edit Card -->
+              <section class="quick-edit-card card-premium mt-4" *ngIf="showEditPanel">
+                <header class="edit-header">
+                  <h3>Quick Edit Asset</h3>
+                </header>
+                <form [formGroup]="editForm" (ngSubmit)="saveEquipmentEdit()">
+                  <div class="edit-form-fields">
+                    <label><span>Name</span><input type="text" formControlName="name" /></label>
+                    <label>
+                      <span>Category</span>
+                      <select formControlName="category">
+                        <option *ngFor="let c of activeCategories" [value]="c.code">{{ c.code }}</option>
+                      </select>
+                    </label>
+                    <label><span>Location</span><input type="text" formControlName="location" /></label>
+                    <button class="btn btn-primary btn-sm w-full mt-2" type="submit" [disabled]="editSubmitting || editForm.invalid || !editForm.dirty">
+                      {{ editSubmitting ? 'Saving...' : 'Save' }}
+                    </button>
+                  </div>
+                </form>
+              </section>
+
+              <!-- Workspace Detail Content directly inside the right panel -->
+              <div class="workspace-tabs-container mt-4">
+                <ng-container [ngTemplateOutlet]="selectedWorkspaceTpl"></ng-container>
+              </div>
             </div>
-            <h4>No Asset Selected</h4>
-            <p>Select a row in the registry to inspect asset metrics, parameters, and quick operations.</p>
+
+            <!-- Fallback detail column placeholder -->
+            <div class="registry-detail-placeholder card-premium" *ngIf="!selectedEquipment">
+              <div class="placeholder-icon">
+                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1"><rect x="4" y="4" width="16" height="16" rx="2" ry="2"></rect><rect x="9" y="9" width="11" height="11" rx="2" ry="2"></rect></svg>
+              </div>
+              <h4>No Asset Selected</h4>
+              <p>Select a row in the registry to inspect asset metrics, parameters, and quick operations.</p>
+            </div>
           </div>
         </div>
 
@@ -612,42 +525,8 @@ interface EquipmentDraft {
         <ng-template #selectedWorkspaceTpl>
           <div class="workspace-area">
             
-            <!-- Complete edit card inside workspace -->
-            <section class="edit-card card-premium" *ngIf="showEditPanel">
-              <header class="edit-header">
-                <h3>Edit Registry Fields</h3>
-                <span>Update core system parameters</span>
-              </header>
-              <form [formGroup]="editForm" (ngSubmit)="saveEquipmentEdit()">
-                <div class="edit-grid">
-                  <label><span>Name</span><input type="text" formControlName="name" /></label>
-                  <label>
-                    <span>Category</span>
-                    <select formControlName="category">
-                      <option *ngFor="let c of activeCategories" [value]="c.code">{{ c.code }} - {{ c.name }}</option>
-                    </select>
-                  </label>
-                  <label><span>Location</span><input type="text" formControlName="location" /></label>
-                  <label><span>Manufacturer</span><input type="text" formControlName="manufacturer" /></label>
-                  <label><span>Model</span><input type="text" formControlName="model" /></label>
-                  <label><span>Serial Number</span><input type="text" formControlName="serialNumber" /></label>
-                  <label><span>Install Date</span><input type="date" formControlName="installDate" /></label>
-                </div>
-                <div class="edit-actions">
-                  <button class="btn btn-primary" type="submit" [disabled]="editSubmitting || editForm.invalid || !editForm.dirty">
-                    {{ editSubmitting ? 'Saving...' : 'Save Changes' }}
-                  </button>
-                  <button class="btn btn-secondary" type="button" (click)="cancelEdit()">Cancel</button>
-                </div>
-              </form>
-            </section>
-
             <!-- Feature Sub-navigation within Equipment Workspace -->
             <div class="workspace-nav-tabs card-premium">
-              <div class="nav-title-group">
-                <h3>{{ selectedEquipment?.assetTag }}</h3>
-                <span class="status-tag" [class]="selectedEquipment?.status">{{ selectedEquipment?.status }}</span>
-              </div>
               <div class="nav-buttons">
                 <button *ngFor="let tab of detailTabs" class="workspace-tab-btn" [class.active]="detailTab === tab" (click)="onDetailTabSelect(tab)">
                   {{ tab }}
@@ -811,10 +690,84 @@ interface EquipmentDraft {
         <div *ngIf="activeTab === 'requests'">
           <mro-eps-change-requests></mro-eps-change-requests>
         </div>
+
+        <!-- OPERATIONS SCANNER TAB -->
+        <div *ngIf="activeTab === 'operations'" class="tab-content-pane">
+          <section class="ops-scan-panel card-premium">
+            <div class="ops-scan-header">
+              <h3>Scanner & Print Utility</h3>
+              <span>Manage physical barcodes and asset tagging</span>
+            </div>
+            <div class="qr-controls">
+              <input
+                type="text"
+                [value]="scannerInput"
+                (input)="scannerInput = $any($event.target).value"
+                placeholder="Scan code or enter asset tag / equipment ID"
+              />
+              <button class="btn btn-primary" (click)="runScannerLookup()">Scan</button>
+              <button class="btn btn-secondary" (click)="printAssetCard()" [disabled]="!selectedEquipment">
+                Print Asset Card
+              </button>
+            </div>
+            <div class="scan-result" *ngIf="scanResultMessage">{{ scanResultMessage }}</div>
+            <div class="scan-actions" *ngIf="scannedEquipment">
+              <button class="btn btn-secondary btn-sm" (click)="handleScanAction('OPEN_EQUIPMENT')">Open Equipment</button>
+              <button class="btn btn-secondary btn-sm" (click)="handleScanAction('CREATE_TICKET')">Create Ticket</button>
+              <button class="btn btn-secondary btn-sm" (click)="handleScanAction('OPEN_WORK_ORDER')">Open Work Order</button>
+              <button class="btn btn-secondary btn-sm" (click)="handleScanAction('UPLOAD_PHOTO')">Upload Photo</button>
+              <button class="btn btn-secondary btn-sm" (click)="handleScanAction('OPEN_MANUALS')">Open Manuals</button>
+            </div>
+          </section>
+        </div>
+
+        <!-- GOVERNANCE AUDIT TAB -->
+        <div *ngIf="activeTab === 'governance'" class="tab-content-pane">
+          <section class="timeline-card card-premium">
+            <header class="timeline-header">
+              <div class="timeline-header-title">
+                <h3>Governance & Audit Trail</h3>
+                <p>Comprehensive audit log and change traceability</p>
+              </div>
+              <select [value]="timelineTypeFilter" (change)="setTimelineTypeFilter($any($event.target).value)">
+                <option value="ALL">All events</option>
+                <option value="MAINTENANCE">Maintenance</option>
+                <option value="DOCUMENTS">Documents</option>
+                <option value="STATUS">Status</option>
+                <option value="APPROVALS">Approvals</option>
+                <option value="TICKETS">Tickets</option>
+                <option value="INVENTORY">Inventory</option>
+              </select>
+            </header>
+            <div class="timeline-empty" *ngIf="timelineGroups.length === 0">No events found.</div>
+            <div class="timeline-group" *ngFor="let group of timelineGroups">
+              <div class="timeline-date">{{ group.dateLabel }}</div>
+              <ul class="timeline-list">
+                <li *ngFor="let event of group.events">
+                  <div class="timeline-dot" [attr.data-type]="event.type"></div>
+                  <div class="timeline-body">
+                    <div class="timeline-title-row">
+                      <span class="timeline-type-pill" [attr.data-type]="event.type">{{ event.type }}</span>
+                      <div class="timeline-title">{{ event.title }}</div>
+                    </div>
+                    <div class="timeline-meta">
+                      <strong>{{ event.equipmentLabel }}</strong> • {{ event.at | date: 'shortTime' }} • {{ event.actor || 'System' }}
+                      <span *ngIf="event.meta" class="meta-separator">| {{ event.meta }}</span>
+                    </div>
+                    <button class="timeline-diff-link" *ngIf="event.diffAvailable" (click)="viewTimelineDiff(event)">
+                      View diff details
+                    </button>
+                  </div>
+                </li>
+              </ul>
+            </div>
+          </section>
+        </div>
       </main>
     </div>
   `,
   styles: [`
+
     /* Clean modern CSS using curated HSL Harmonies & CSS variables */
     :host {
       display: block;
@@ -1156,7 +1109,7 @@ interface EquipmentDraft {
     /* Layout Workspace Grid */
     .registry-grid {
       display: grid;
-      grid-template-columns: 1fr 340px;
+      grid-template-columns: 1.15fr 0.85fr;
       gap: 24px;
       align-items: start;
     }
@@ -2374,7 +2327,7 @@ export class EpsPageComponent implements OnInit, OnDestroy {
   newFilterName = '';
   newFilterScope: SavedFilter['scope'] = 'PERSONAL';
 
-  activeTab: 'registry' | 'requests' = 'registry';
+  activeTab: 'registry' | 'requests' | 'operations' | 'governance' = 'registry';
   detailTabs: EquipmentDetailTab[] = ['OVERVIEW', 'DOCUMENTS', 'MAINTENANCE', 'TICKETS', 'INVENTORY', 'HISTORY', 'COMPLIANCE', 'RELIABILITY'];
   detailTab: EquipmentDetailTab = 'OVERVIEW';
   currentRole: WorkflowRole = 'MANAGER';
@@ -3003,6 +2956,7 @@ export class EpsPageComponent implements OnInit, OnDestroy {
 
   handleScanAction(action: ScanAction): void {
     if (!this.scannedEquipment) return;
+    this.activeTab = 'registry';
     if (action === 'OPEN_EQUIPMENT') {
       this.selectEquipment(this.scannedEquipment);
       this.onDetailTabSelect('OVERVIEW');
