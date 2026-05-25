@@ -241,7 +241,7 @@ export class EpsChangeRequestsComponent implements OnInit {
 
   loadRequests(): void {
     this.loading = true;
-    this.epsService.getChangeRequests().subscribe({
+    this.epsService.getChangeRequestsCached().subscribe({
       next: (res) => {
         this.requests = res.data.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
         this.loading = false;
@@ -279,6 +279,7 @@ export class EpsChangeRequestsComponent implements OnInit {
 
     this.epsService.createChangeRequest(payload).subscribe({
       next: () => {
+        this.epsService.invalidateChangeRequestsCache();
         this.submitting = false;
         this.showCreateForm = false;
         this.createForm.reset({ changeType: 'CREATE', entityId: '', proposedData: '' });
@@ -297,7 +298,10 @@ export class EpsChangeRequestsComponent implements OnInit {
     const decision: DecideChangeRequest = { approvalNotes: notes || undefined };
     const action = approve ? this.epsService.approveChangeRequest(id, decision) : this.epsService.rejectChangeRequest(id, decision);
     action.subscribe({
-      next: () => this.loadRequests(),
+      next: () => {
+        this.epsService.invalidateChangeRequestsCache();
+        this.loadRequests();
+      },
       error: (err) => alert(err?.error?.message ?? 'Failed to process decision.')
     });
   }

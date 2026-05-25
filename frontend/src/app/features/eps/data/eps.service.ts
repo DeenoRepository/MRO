@@ -1,12 +1,14 @@
 import { Injectable } from '@angular/core';
 import { HttpClient, HttpEvent } from '@angular/common/http';
-import { Observable } from 'rxjs';
+import { Observable, shareReplay } from 'rxjs';
 import { ApiSuccessResponse } from '../../../core/api/api.models';
 import { ApiClientService } from '../../../core/api/api-client.service';
 import { CreateEquipmentRequest, Equipment, UpdateEquipmentRequest, EquipmentDocument, ChangeRequest, CreateChangeRequest, DecideChangeRequest, TelemetryPoint, TelemetryMetricType, EquipmentMediaItem, EquipmentMediaType } from './eps.models';
 
 @Injectable({ providedIn: 'root' })
 export class EpsService {
+  private changeRequests$?: Observable<ApiSuccessResponse<ChangeRequest[]>>;
+
   constructor(
     private readonly api: ApiClientService,
     private readonly http: HttpClient
@@ -98,6 +100,17 @@ export class EpsService {
 
   getChangeRequests(): Observable<ApiSuccessResponse<ChangeRequest[]>> {
     return this.api.get<ChangeRequest[]>('/eps/change-requests');
+  }
+
+  getChangeRequestsCached(forceRefresh = false): Observable<ApiSuccessResponse<ChangeRequest[]>> {
+    if (forceRefresh || !this.changeRequests$) {
+      this.changeRequests$ = this.getChangeRequests().pipe(shareReplay(1));
+    }
+    return this.changeRequests$;
+  }
+
+  invalidateChangeRequestsCache(): void {
+    this.changeRequests$ = undefined;
   }
 
   createChangeRequest(payload: CreateChangeRequest): Observable<ApiSuccessResponse<ChangeRequest>> {

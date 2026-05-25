@@ -1297,7 +1297,7 @@ export class EpsPageComponent implements OnInit {
       return Date.now() - updated < 1000 * 60 * 60 * 24 * 7;
     }).length;
 
-    this.epsService.getChangeRequests().subscribe({
+    this.epsService.getChangeRequestsCached().subscribe({
       next: (res) => {
         const pendingApprovals = res.data.filter((r) => r.status === 'PENDING').length;
         this.widgets = [
