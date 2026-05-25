@@ -2,13 +2,14 @@ package com.company.mro.eps.api
 
 import com.company.mro.eps.application.EquipmentService
 import com.company.mro.eps.domain.EquipmentStatus
+import com.company.mro.eps.dto.CreateEquipmentRequest
 import com.company.mro.eps.dto.EquipmentRegistryPageResponse
 import com.company.mro.eps.dto.EquipmentResponse
 import com.fasterxml.jackson.databind.ObjectMapper
 import org.junit.jupiter.api.Test
-import org.mockito.ArgumentMatchers.any
-import org.mockito.ArgumentMatchers.anyInt
-import org.mockito.ArgumentMatchers.anyString
+import org.mockito.ArgumentMatchers.eq
+import org.mockito.ArgumentMatchers.isNull
+import org.mockito.ArgumentMatchers.nullable
 import org.mockito.Mockito.`when`
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest
@@ -59,7 +60,7 @@ class EquipmentControllerSecurityTest {
             "category" to "PUMP"
         )
 
-        `when`(equipmentService.create(any())).thenReturn(
+        `when`(equipmentService.create(anyCreateEquipmentRequest())).thenReturn(
             EquipmentResponse(
                 id = UUID.randomUUID(),
                 assetTag = "EQ-1001",
@@ -88,14 +89,14 @@ class EquipmentControllerSecurityTest {
     @Test
     fun `viewer can read registry page`() {
         `when`(
-            equipmentService.getRegistryPage(
-                any(),
-                anyString(),
-                anyString(),
-                anyInt(),
-                anyInt(),
-                anyString(),
-                anyString()
+                equipmentService.getRegistryPage(
+                    nullable(EquipmentStatus::class.java),
+                    isNull(),
+                    eq("pump"),
+                eq(0),
+                eq(20),
+                isNull(),
+                isNull()
             )
         ).thenReturn(
             EquipmentRegistryPageResponse(
@@ -126,4 +127,8 @@ class EquipmentControllerSecurityTest {
         ).andExpect(status().isUnauthorized)
     }
 }
+
+private fun anyCreateEquipmentRequest(): CreateEquipmentRequest =
+    org.mockito.ArgumentMatchers.any(CreateEquipmentRequest::class.java)
+        ?: CreateEquipmentRequest(assetTag = "fallback", name = "fallback", category = "fallback")
 
