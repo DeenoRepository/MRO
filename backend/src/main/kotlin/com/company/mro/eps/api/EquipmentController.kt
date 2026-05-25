@@ -10,6 +10,7 @@ import com.company.mro.eps.dto.EquipmentDuplicateCandidateResponse
 import com.company.mro.eps.dto.EquipmentMobileListResponse
 import com.company.mro.eps.dto.EquipmentOverviewItemResponse
 import com.company.mro.eps.dto.EquipmentQrPayloadResponse
+import com.company.mro.eps.dto.EquipmentRegistryPageResponse
 import com.company.mro.eps.dto.EquipmentResponse
 import com.company.mro.eps.dto.EquipmentSearchItemResponse
 import com.company.mro.eps.dto.UpdateEquipmentRequest
@@ -42,6 +43,20 @@ class EquipmentController(
     @Operation(summary = "List equipment")
     @PreAuthorize("hasAuthority('EPS_READ')")
     fun getAll(): ApiSuccessResponse<List<EquipmentResponse>> = successResponse(equipmentService.getAll())
+
+    @GetMapping("/registry")
+    @Operation(summary = "List equipment with server-side pagination and filters")
+    @PreAuthorize("hasAuthority('EPS_READ')")
+    fun getRegistryPage(
+        @RequestParam("status", required = false) status: EquipmentStatus?,
+        @RequestParam("category", required = false) category: String?,
+        @RequestParam("query", required = false) query: String?,
+        @RequestParam("page", required = false) page: Int?,
+        @RequestParam("size", required = false) size: Int?,
+        @RequestParam("sortBy", required = false) sortBy: String?,
+        @RequestParam("sortDirection", required = false) sortDirection: String?
+    ): ApiSuccessResponse<EquipmentRegistryPageResponse> =
+        successResponse(equipmentService.getRegistryPage(status, category, query, page, size, sortBy, sortDirection))
 
     @GetMapping("/mobile")
     @Operation(summary = "List equipment with compact payload for mobile clients")

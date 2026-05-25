@@ -10,6 +10,7 @@ import com.company.mro.eps.dto.EquipmentMobileItemResponse
 import com.company.mro.eps.dto.EquipmentMobileListResponse
 import com.company.mro.eps.dto.EquipmentOverviewItemResponse
 import com.company.mro.eps.dto.EquipmentQrPayloadResponse
+import com.company.mro.eps.dto.EquipmentRegistryPageResponse
 import com.company.mro.eps.dto.EquipmentResponse
 import com.company.mro.eps.dto.EquipmentSearchItemResponse
 import com.company.mro.eps.dto.UpdateEquipmentRequest
@@ -17,6 +18,8 @@ import com.company.mro.eps.persistence.EquipmentEntity
 import com.company.mro.eps.persistence.EquipmentOverviewProjection
 import com.company.mro.eps.persistence.EquipmentRepository
 import org.springframework.beans.factory.annotation.Value
+import org.springframework.data.domain.PageRequest
+import org.springframework.data.domain.Sort
 import org.springframework.http.HttpStatus
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
@@ -39,6 +42,7 @@ class EquipmentService(
         private const val MAX_MOBILE_LIMIT = 100
         private const val OVERVIEW_CACHE_PREFIX = "equipment_overview"
         private const val SEARCH_CACHE_PREFIX = "equipment_search"
+        private const val REGISTRY_CACHE_PREFIX = "equipment_registry"
     }
 
     private data class CacheEntry(val expiresAt: Instant, val value: Any)
@@ -61,6 +65,54 @@ class EquipmentService(
             equipmentRepository.findOverview(status, normalizedCategory)
                 .take(resolvedLimit)
                 .map { it.toOverviewItemResponse() }
+        }
+    }
+
+    @Transactional(readOnly = true)
+    fun getRegistryPage(
+        status: EquipmentStatus?,
+        category: String?,
+        query: String?,
+        page: Int?,
+        size: Int?,
+        sortBy: String?,
+        sortDirection: String?
+    ): EquipmentRegistryPageResponse {
+        val resolvedPage = page ?: 0
+        if (resolvedPage < 0) {
+            throw ResponseStatusException(HttpStatus.BAD_REQUEST, "page must be greater than or equal to 0")
+        }
+        val resolvedSize = min(size ?: DEFAULT_MOBILE_LIMIT, MAX_MOBILE_LIMIT)
+        if (resolvedSize <= 0) {
+            throw ResponseStatusException(HttpStatus.BAD_REQUEST, "size must be greater than 0")
+        }
+        val normalizedCategory = category?.trim()?.takeIf { it.isNotEmpty() }
+        val normalizedQuery = query?.trim()?.takeIf { it.isNotEmpty() }
+        val resolvedSortBy = when (sortBy?.trim()?.lowercase()) {
+            "name" -> "name"
+            "category" -> "category"
+            "status" -> "status"
+            "location" -> "location"
+            "updatedat" -> "updatedAt"
+            else -> "assetTag"
+        }
+        val resolvedSortDirection = if (sortDirection?.trim()?.equals("desc", ignoreCase = true) == true) {
+            Sort.Direction.DESC
+        } else {
+            Sort.Direction.ASC
+        }
+
+        val cacheKey = "$REGISTRY_CACHE_PREFIX|status=${status?.name ?: "ANY"}|category=${normalizedCategory ?: "ANY"}|query=${normalizedQuery ?: "ANY"}|page=$resolvedPage|size=$resolvedSize|sort=$resolvedSortBy|dir=${resolvedSortDirection.name}"
+        return getCached(cacheKey) {
+            val pageable = PageRequest.of(resolvedPage, resolvedSize, Sort.by(resolvedSortDirection, resolvedSortBy))
+            val result = equipmentRepository.findRegistryPage(status, normalizedCategory, normalizedQuery, pageable)
+            EquipmentRegistryPageResponse(
+                items = result.content.map { it.toResponse() },
+                page = result.number,
+                size = result.size,
+                totalItems = result.totalElements,
+                totalPages = result.totalPages
+            )
         }
     }
 
@@ -241,7 +293,11 @@ class EquipmentService(
     }
 
     private fun invalidateReadCaches() {
-        readCache.keys.removeIf { it.startsWith(OVERVIEW_CACHE_PREFIX) || it.startsWith(SEARCH_CACHE_PREFIX) }
+        readCache.keys.removeIf {
+            it.startsWith(OVERVIEW_CACHE_PREFIX) ||
+                it.startsWith(SEARCH_CACHE_PREFIX) ||
+                it.startsWith(REGISTRY_CACHE_PREFIX)
+        }
     }
 
     private fun findEntity(id: UUID): EquipmentEntity =

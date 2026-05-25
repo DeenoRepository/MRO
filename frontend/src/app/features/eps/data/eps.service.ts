@@ -3,7 +3,7 @@ import { HttpClient, HttpEvent } from '@angular/common/http';
 import { Observable, shareReplay } from 'rxjs';
 import { ApiSuccessResponse } from '../../../core/api/api.models';
 import { ApiClientService } from '../../../core/api/api-client.service';
-import { CreateEquipmentRequest, Equipment, UpdateEquipmentRequest, EquipmentDocument, ChangeRequest, CreateChangeRequest, DecideChangeRequest, TelemetryPoint, TelemetryMetricType, EquipmentMediaItem, EquipmentMediaType } from './eps.models';
+import { CreateEquipmentRequest, Equipment, UpdateEquipmentRequest, EquipmentDocument, ChangeRequest, CreateChangeRequest, DecideChangeRequest, TelemetryPoint, TelemetryMetricType, EquipmentMediaItem, EquipmentMediaType, EquipmentRegistryPageResponse } from './eps.models';
 
 @Injectable({ providedIn: 'root' })
 export class EpsService {
@@ -16,6 +16,26 @@ export class EpsService {
 
   getEquipment(): Observable<ApiSuccessResponse<Equipment[]>> {
     return this.api.get<Equipment[]>('/eps/equipment');
+  }
+
+  getEquipmentRegistryPage(params: {
+    status?: string;
+    category?: string;
+    query?: string;
+    page?: number;
+    size?: number;
+    sortBy?: string;
+    sortDirection?: 'asc' | 'desc';
+  }): Observable<ApiSuccessResponse<EquipmentRegistryPageResponse>> {
+    const query = new URLSearchParams();
+    if (params.status && params.status !== 'ALL') query.set('status', params.status);
+    if (params.category && params.category !== 'ALL') query.set('category', params.category);
+    if (params.query && params.query.trim().length > 0) query.set('query', params.query.trim());
+    query.set('page', String(params.page ?? 0));
+    query.set('size', String(params.size ?? 20));
+    query.set('sortBy', params.sortBy ?? 'assetTag');
+    query.set('sortDirection', params.sortDirection ?? 'asc');
+    return this.api.get<EquipmentRegistryPageResponse>(`/eps/equipment/registry?${query.toString()}`);
   }
 
   getEquipmentById(id: string): Observable<ApiSuccessResponse<Equipment>> {

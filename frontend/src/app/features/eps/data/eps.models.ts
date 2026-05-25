@@ -33,6 +33,15 @@ export interface UpdateEquipmentRequest {
   serialNumber?: string;
   installDate?: string;
 }
+
+export interface EquipmentRegistryPageResponse {
+  items: Equipment[];
+  page: number;
+  size: number;
+  totalItems: number;
+  totalPages: number;
+}
+
 export interface EquipmentDocument {
   id: string;
   equipmentId: string;

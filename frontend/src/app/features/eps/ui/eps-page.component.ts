@@ -282,7 +282,7 @@ interface EquipmentDraft {
                   </tr>
                 </tbody>
               </table>
-              <div class="pager-row" *ngIf="filteredEquipment.length > pageSize">
+              <div class="pager-row" *ngIf="totalRegistryItems > pageSize">
                 <button class="btn btn-secondary btn-sm" (click)="prevPage()" [disabled]="currentPage === 1">Prev</button>
                 <span>Page {{ currentPage }} / {{ totalPages }}</span>
                 <button class="btn btn-secondary btn-sm" (click)="nextPage()" [disabled]="currentPage === totalPages">Next</button>
@@ -625,6 +625,8 @@ export class EpsPageComponent implements OnInit {
   paginatedEquipment: Equipment[] = [];
   pageSize = 20;
   currentPage = 1;
+  totalRegistryItems = 0;
+  totalRegistryPages = 1;
   selectedRows = new Set<string>();
   searchQuery = '';
   statusFilter = 'ALL';
@@ -713,7 +715,7 @@ export class EpsPageComponent implements OnInit {
   }
 
   get totalPages(): number {
-    return Math.max(1, Math.ceil(this.filteredEquipment.length / this.pageSize));
+    return Math.max(1, this.totalRegistryPages);
   }
 
   get visibleWidgets(): DashboardWidget[] {
@@ -1139,40 +1141,36 @@ export class EpsPageComponent implements OnInit {
   }
 
   private applyFiltersAndSort(): void {
-    const query = this.searchQuery.trim().toLowerCase();
-    this.filteredEquipment = this.equipment
-      .filter((item) => {
-        if (this.statusFilter !== 'ALL' && item.status !== this.statusFilter) return false;
-        if (this.categoryFilter !== 'ALL' && item.category !== this.categoryFilter) return false;
-        if (!query) return true;
-        const alias = `${item.assetTag}-${item.category}`.toLowerCase();
-        const docHint = `manual ${item.assetTag}`.toLowerCase();
-        const haystack = [
-          item.assetTag,
-          item.name,
-          item.category,
-          item.status,
-          item.serialNumber ?? '',
-          item.manufacturer ?? '',
-          item.location ?? '',
-          alias,
-          docHint
-        ].join(' ').toLowerCase();
-        return haystack.includes(query);
-      })
-      .sort((a, b) => {
-        const left = String(this.readSortValue(a, this.sortField)).toLowerCase();
-        const right = String(this.readSortValue(b, this.sortField)).toLowerCase();
-        const result = left.localeCompare(right);
-        return this.sortDirection === 'asc' ? result : -result;
-      });
     this.currentPage = 1;
     this.applyPagination();
   }
 
   private applyPagination(): void {
-    const start = (this.currentPage - 1) * this.pageSize;
-    this.paginatedEquipment = this.filteredEquipment.slice(start, start + this.pageSize);
+    this.loading = true;
+    this.epsService.getEquipmentRegistryPage({
+      status: this.statusFilter,
+      category: this.categoryFilter,
+      query: this.searchQuery,
+      page: this.currentPage - 1,
+      size: this.pageSize,
+      sortBy: this.sortField,
+      sortDirection: this.sortDirection
+    }).subscribe({
+      next: (res) => {
+        this.paginatedEquipment = res.data.items;
+        this.filteredEquipment = res.data.items;
+        this.totalRegistryItems = res.data.totalItems;
+        this.totalRegistryPages = Math.max(1, res.data.totalPages);
+        this.loading = false;
+      },
+      error: () => {
+        this.paginatedEquipment = [];
+        this.filteredEquipment = [];
+        this.totalRegistryItems = 0;
+        this.totalRegistryPages = 1;
+        this.loading = false;
+      }
+    });
   }
 
   onDetailTabSelect(tab: EquipmentDetailTab): void {
