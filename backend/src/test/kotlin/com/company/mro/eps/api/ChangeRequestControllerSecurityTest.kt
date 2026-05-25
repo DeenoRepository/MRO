@@ -1,6 +1,7 @@
 package com.company.mro.eps.api
 
 import com.company.mro.eps.application.ChangeRequestService
+import com.company.mro.eps.domain.ChangeRiskLevel
 import com.company.mro.eps.domain.ChangeRequestStatus
 import com.company.mro.eps.dto.ChangeRequestResponse
 import com.company.mro.eps.dto.CreateChangeRequest
@@ -73,6 +74,11 @@ class ChangeRequestControllerSecurityTest {
             entityId = null,
             changeType = "CREATE",
             proposedData = "{}",
+            riskLevel = ChangeRiskLevel.MEDIUM,
+            impactSummary = null,
+            requiresEscalation = false,
+            approvalsRequired = 1,
+            approvalsCompleted = 0,
             status = ChangeRequestStatus.PENDING,
             requestedBy = null,
             approvedBy = null,
@@ -114,6 +120,11 @@ class ChangeRequestControllerSecurityTest {
             entityId = UUID.randomUUID(),
             changeType = "CREATE",
             proposedData = "{}",
+            riskLevel = ChangeRiskLevel.MEDIUM,
+            impactSummary = null,
+            requiresEscalation = false,
+            approvalsRequired = 1,
+            approvalsCompleted = 1,
             status = ChangeRequestStatus.APPROVED,
             requestedBy = null,
             approvedBy = null,
