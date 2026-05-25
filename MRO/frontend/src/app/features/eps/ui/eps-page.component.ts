@@ -1243,41 +1243,40 @@ interface EquipmentDraft {
       background: #ffffff;
       border: 1px solid var(--border-color);
       border-radius: var(--border-radius-lg);
-      padding: 32px;
-      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.03);
+      padding: 24px;
+      box-shadow: var(--shadow-premium);
       position: relative;
     }
 
     .passport-title-header {
-      border-bottom: 2px double var(--border-color);
-      padding-bottom: 20px;
+      border-bottom: 1px solid var(--border-color);
+      padding-bottom: 16px;
       margin-bottom: 24px;
     }
 
     .passport-badge {
       display: inline-block;
-      font-size: 0.7rem;
-      font-weight: 800;
-      color: hsl(210, 80%, 40%);
-      background: hsl(210, 80%, 95%);
-      padding: 4px 8px;
+      font-size: 0.68rem;
+      font-weight: 600;
+      color: hsl(220, 80%, 45%);
+      background: hsl(220, 80%, 96%);
+      padding: 3px 8px;
       border-radius: 4px;
-      letter-spacing: 1px;
+      letter-spacing: 0.5px;
       margin-bottom: 8px;
       text-transform: uppercase;
-      border: 1px solid hsl(210, 80%, 90%);
     }
 
     .passport-main-title {
-      font-size: 1.5rem;
-      font-weight: 800;
+      font-size: 1.25rem;
+      font-weight: 700;
       color: var(--text-color);
-      margin: 0 0 8px 0;
-      letter-spacing: -0.5px;
+      margin: 0 0 6px 0;
+      letter-spacing: -0.3px;
     }
 
     .passport-subtitle {
-      font-size: 0.85rem;
+      font-size: 0.8rem;
       color: var(--text-muted);
       display: flex;
       gap: 12px;
@@ -1292,131 +1291,121 @@ interface EquipmentDraft {
     .passport-sections {
       display: flex;
       flex-direction: column;
-      gap: 28px;
+      gap: 24px;
     }
 
     .passport-section-group {
       display: flex;
       flex-direction: column;
-      gap: 14px;
+      gap: 10px;
     }
 
     .section-group-title {
-      font-size: 0.85rem;
-      font-weight: 700;
-      color: var(--text-color);
+      font-size: 0.8rem;
+      font-weight: 600;
+      color: hsl(220, 80%, 40%);
       text-transform: uppercase;
       letter-spacing: 0.5px;
       margin: 0;
-      border-left: 3px solid hsl(210, 80%, 45%);
-      padding-left: 10px;
+      padding-bottom: 6px;
+      border-bottom: 1px solid hsla(220, 15%, 85%, 0.4);
     }
 
     .passport-grid {
       display: grid;
       grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-      gap: 16px;
-      background: hsl(220, 20%, 98%);
-      border: 1px solid var(--border-color);
-      border-radius: var(--border-radius-md);
-      padding: 18px;
+      gap: 16px 24px;
+      padding: 8px 0;
     }
 
     .passport-field {
       display: flex;
       flex-direction: column;
-      gap: 4px;
+      gap: 2px;
     }
 
     .field-label {
-      font-size: 0.72rem;
-      font-weight: 700;
+      font-size: 0.68rem;
+      font-weight: 500;
       color: var(--text-muted);
       text-transform: uppercase;
       letter-spacing: 0.3px;
     }
 
     .field-value {
-      font-size: 0.95rem;
+      font-size: 0.9rem;
       color: var(--text-color);
-      font-weight: 600;
+      font-weight: 500;
     }
 
     .verification-stamps {
       display: flex;
-      gap: 20px;
+      gap: 16px;
       flex-wrap: wrap;
-      margin-top: 8px;
+      margin-top: 4px;
     }
 
     .stamp-box {
-      border: 2px dashed var(--border-color);
-      border-radius: 8px;
-      padding: 12px 18px;
+      border: 1px solid var(--border-color);
+      border-radius: 6px;
+      padding: 8px 14px;
       display: flex;
       flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      min-width: 140px;
-      text-align: center;
+      align-items: flex-start;
+      gap: 2px;
+      min-width: 150px;
       background: hsl(220, 10%, 99%);
-      opacity: 0.85;
-      transition: all 0.2s ease;
+      transition: var(--transition-smooth);
     }
 
     .stamp-box:hover {
-      opacity: 1;
-      transform: translateY(-2px);
+      transform: translateY(-1px);
     }
 
     .stamp-box.approved {
-      border-color: hsl(140, 60%, 45%);
-      color: hsl(140, 70%, 30%);
-      background: hsl(140, 60%, 98%);
+      border-color: hsla(142, 76%, 50%, 0.15);
+      background: hsla(142, 76%, 97%, 0.5);
     }
 
     .stamp-box.approved .stamp-status {
-      color: hsl(140, 70%, 35%);
+      color: var(--success-color);
     }
 
     .stamp-box.safety {
-      border-color: hsl(35, 75%, 45%);
-      color: hsl(35, 80%, 30%);
-      background: hsl(35, 75%, 98%);
+      border-color: hsla(35, 90%, 50%, 0.15);
+      background: hsla(35, 90%, 97%, 0.5);
     }
 
     .stamp-box.safety .stamp-status {
-      color: hsl(35, 80%, 35%);
+      color: var(--warning-color);
     }
 
     .stamp-box.audit {
-      border-color: hsl(210, 70%, 45%);
-      color: hsl(210, 80%, 30%);
-      background: hsl(210, 70%, 98%);
+      border-color: hsla(220, 90%, 50%, 0.15);
+      background: hsla(220, 90%, 97%, 0.5);
     }
 
     .stamp-box.audit .stamp-status {
-      color: hsl(210, 80%, 35%);
+      color: var(--primary-color);
     }
 
     .stamp-label {
       font-size: 0.65rem;
-      font-weight: 800;
+      font-weight: 600;
+      color: var(--text-muted);
       letter-spacing: 0.5px;
       text-transform: uppercase;
     }
 
     .stamp-status {
-      font-size: 1.15rem;
-      font-weight: 900;
-      letter-spacing: 1px;
-      margin: 4px 0;
+      font-size: 0.95rem;
+      font-weight: 700;
+      letter-spacing: 0.5px;
     }
 
     .stamp-date {
-      font-size: 0.65rem;
-      font-weight: 600;
-      opacity: 0.8;
+      font-size: 0.68rem;
+      color: var(--text-muted);
     }
 
     .registry-list-section {
