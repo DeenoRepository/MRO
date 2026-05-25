@@ -1,0 +1,730 @@
+openapi: 3.0.3
+info:
+  title: Equipment Passportization System (EPS) API
+  version: 1.0.0
+  description: API for assets registry, technical passports, equipment documents, and change requests.
+servers:
+  - url: /api/v1
+paths:
+  /eps/equipment:
+    get:
+      summary: List all equipment
+      operationId: getEquipment
+      security:
+        - basicAuth: []
+      responses:
+        '200':
+          description: A list of equipment registry items.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  meta:
+                    $ref: '#/components/schemas/ApiMeta'
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/EquipmentResponse'
+        '401':
+          $ref: '#/components/responses/401Unauthorized'
+        '403':
+          $ref: '#/components/responses/403Forbidden'
+
+  /eps/equipment/registry:
+    get:
+      summary: List equipment with server-side pagination, filters, and sorting
+      operationId: getEquipmentRegistryPage
+      security:
+        - basicAuth: []
+      parameters:
+        - name: status
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [PLANNED, ORDERED, IN_TRANSIT, INSTALLED, ACTIVE, MAINTENANCE, DECOMMISSIONED, SCRAPPED, INACTIVE]
+        - name: category
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: query
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: page
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
+        - name: size
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+        - name: sortBy
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [assetTag, name, category, status, location, updatedAt]
+            default: assetTag
+        - name: sortDirection
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [asc, desc]
+            default: asc
+      responses:
+        '200':
+          description: Paged equipment registry response.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  meta:
+                    $ref: '#/components/schemas/ApiMeta'
+                  data:
+                    $ref: '#/components/schemas/EquipmentRegistryPageResponse'
+        '400':
+          $ref: '#/components/responses/400BadRequest'
+        '401':
+          $ref: '#/components/responses/401Unauthorized'
+        '403':
+          $ref: '#/components/responses/403Forbidden'
+    post:
+      summary: Register new equipment
+      operationId: createEquipment
+      security:
+        - basicAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateEquipmentRequest'
+      responses:
+        '201':
+          description: Equipment created.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  meta:
+                    $ref: '#/components/schemas/ApiMeta'
+                  data:
+                    $ref: '#/components/schemas/EquipmentResponse'
+        '400':
+          $ref: '#/components/responses/400BadRequest'
+        '401':
+          $ref: '#/components/responses/401Unauthorized'
+        '403':
+          $ref: '#/components/responses/403Forbidden'
+
+  /eps/equipment/{id}:
+    get:
+      summary: Get equipment by ID
+      operationId: getEquipmentById
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      security:
+        - basicAuth: []
+      responses:
+        '200':
+          description: Equipment details.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  meta:
+                    $ref: '#/components/schemas/ApiMeta'
+                  data:
+                    $ref: '#/components/schemas/EquipmentResponse'
+        '401':
+          $ref: '#/components/responses/401Unauthorized'
+        '403':
+          $ref: '#/components/responses/403Forbidden'
+        '404':
+          $ref: '#/components/responses/404NotFound'
+    put:
+      summary: Update equipment registry details
+      operationId: updateEquipment
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      security:
+        - basicAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateEquipmentRequest'
+      responses:
+        '200':
+          description: Equipment updated.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  meta:
+                    $ref: '#/components/schemas/ApiMeta'
+                  data:
+                    $ref: '#/components/schemas/EquipmentResponse'
+        '400':
+          $ref: '#/components/responses/400BadRequest'
+        '401':
+          $ref: '#/components/responses/401Unauthorized'
+        '403':
+          $ref: '#/components/responses/403Forbidden'
+        '404':
+          $ref: '#/components/responses/404NotFound'
+    delete:
+      summary: Deactivate equipment
+      operationId: deactivateEquipment
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      security:
+        - basicAuth: []
+      responses:
+        '204':
+          description: Equipment deactivated successfully.
+        '401':
+          $ref: '#/components/responses/401Unauthorized'
+        '403':
+          $ref: '#/components/responses/403Forbidden'
+        '404':
+          $ref: '#/components/responses/404NotFound'
+
+  /eps/equipment/{id}/documents:
+    get:
+      summary: Get documents associated with equipment
+      operationId: getEquipmentDocuments
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      security:
+        - basicAuth: []
+      responses:
+        '200':
+          description: List of documents.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  meta:
+                    $ref: '#/components/schemas/ApiMeta'
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/EquipmentDocumentResponse'
+        '401':
+          $ref: '#/components/responses/401Unauthorized'
+        '403':
+          $ref: '#/components/responses/403Forbidden'
+        '404':
+          $ref: '#/components/responses/404NotFound'
+    post:
+      summary: Upload a new technical document
+      operationId: uploadEquipmentDocument
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      security:
+        - basicAuth: []
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                documentType:
+                  type: string
+                file:
+                  type: string
+                  format: binary
+              required:
+                - documentType
+                - file
+      responses:
+        '201':
+          description: Document uploaded successfully.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  meta:
+                    $ref: '#/components/schemas/ApiMeta'
+                  data:
+                    $ref: '#/components/schemas/EquipmentDocumentResponse'
+        '400':
+          $ref: '#/components/responses/400BadRequest'
+        '401':
+          $ref: '#/components/responses/401Unauthorized'
+        '403':
+          $ref: '#/components/responses/403Forbidden'
+        '404':
+          $ref: '#/components/responses/404NotFound'
+
+  /eps/equipment/documents/{documentId}/download:
+    get:
+      summary: Download equipment document file
+      operationId: downloadEquipmentDocument
+      parameters:
+        - name: documentId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      security:
+        - basicAuth: []
+      responses:
+        '200':
+          description: Binary document file content.
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
+        '401':
+          $ref: '#/components/responses/401Unauthorized'
+        '403':
+          $ref: '#/components/responses/403Forbidden'
+        '404':
+          $ref: '#/components/responses/404NotFound'
+
+  /eps/change-requests:
+    get:
+      summary: Get list of change requests
+      operationId: getChangeRequests
+      security:
+        - basicAuth: []
+      responses:
+        '200':
+          description: List of change requests.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  meta:
+                    $ref: '#/components/schemas/ApiMeta'
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/ChangeRequestResponse'
+        '401':
+          $ref: '#/components/responses/401Unauthorized'
+        '403':
+          $ref: '#/components/responses/403Forbidden'
+    post:
+      summary: Submit a new change request
+      operationId: createChangeRequest
+      security:
+        - basicAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateChangeRequest'
+      responses:
+        '201':
+          description: Change request submitted.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  meta:
+                    $ref: '#/components/schemas/ApiMeta'
+                  data:
+                    $ref: '#/components/schemas/ChangeRequestResponse'
+        '400':
+          $ref: '#/components/responses/400BadRequest'
+        '401':
+          $ref: '#/components/responses/401Unauthorized'
+        '403':
+          $ref: '#/components/responses/403Forbidden'
+
+  /eps/change-requests/{id}/approve:
+    post:
+      summary: Approve a pending change request
+      operationId: approveChangeRequest
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      security:
+        - basicAuth: []
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DecideChangeRequest'
+      responses:
+        '200':
+          description: Approved change request details.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  meta:
+                    $ref: '#/components/schemas/ApiMeta'
+                  data:
+                    $ref: '#/components/schemas/ChangeRequestResponse'
+        '400':
+          $ref: '#/components/responses/400BadRequest'
+        '401':
+          $ref: '#/components/responses/401Unauthorized'
+        '403':
+          $ref: '#/components/responses/403Forbidden'
+        '404':
+          $ref: '#/components/responses/404NotFound'
+
+  /eps/change-requests/{id}/reject:
+    post:
+      summary: Reject a pending change request
+      operationId: rejectChangeRequest
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      security:
+        - basicAuth: []
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DecideChangeRequest'
+      responses:
+        '200':
+          description: Rejected change request details.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  meta:
+                    $ref: '#/components/schemas/ApiMeta'
+                  data:
+                    $ref: '#/components/schemas/ChangeRequestResponse'
+        '400':
+          $ref: '#/components/responses/400BadRequest'
+        '401':
+          $ref: '#/components/responses/401Unauthorized'
+        '403':
+          $ref: '#/components/responses/403Forbidden'
+        '404':
+          $ref: '#/components/responses/404NotFound'
+
+components:
+  securitySchemes:
+    basicAuth:
+      type: http
+      scheme: basic
+  schemas:
+    ApiMeta:
+      type: object
+      properties:
+        requestId:
+          type: string
+          nullable: true
+    ApiErrorResponse:
+      type: object
+      properties:
+        timestamp:
+          type: string
+          format: date-time
+        status:
+          type: integer
+        error:
+          type: string
+        message:
+          type: string
+        path:
+          type: string
+        requestId:
+          type: string
+          nullable: true
+    CreateEquipmentRequest:
+      type: object
+      required:
+        - assetTag
+        - name
+        - category
+      properties:
+        assetTag:
+          type: string
+          maxLength: 64
+        name:
+          type: string
+          maxLength: 255
+        category:
+          type: string
+          maxLength: 128
+        location:
+          type: string
+          maxLength: 255
+          nullable: true
+        manufacturer:
+          type: string
+          maxLength: 255
+          nullable: true
+        model:
+          type: string
+          maxLength: 255
+          nullable: true
+        serialNumber:
+          type: string
+          maxLength: 128
+          nullable: true
+        installDate:
+          type: string
+          format: date
+          nullable: true
+    UpdateEquipmentRequest:
+      type: object
+      required:
+        - name
+        - category
+      properties:
+        name:
+          type: string
+          maxLength: 255
+        category:
+          type: string
+          maxLength: 128
+        location:
+          type: string
+          maxLength: 255
+          nullable: true
+        manufacturer:
+          type: string
+          maxLength: 255
+          nullable: true
+        model:
+          type: string
+          maxLength: 255
+          nullable: true
+        serialNumber:
+          type: string
+          maxLength: 128
+          nullable: true
+        installDate:
+          type: string
+          format: date
+          nullable: true
+    EquipmentResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        assetTag:
+          type: string
+        name:
+          type: string
+        category:
+          type: string
+        status:
+          type: string
+          enum: [PLANNED, ORDERED, IN_TRANSIT, INSTALLED, ACTIVE, MAINTENANCE, DECOMMISSIONED, SCRAPPED, INACTIVE]
+        location:
+          type: string
+          nullable: true
+        manufacturer:
+          type: string
+          nullable: true
+        model:
+          type: string
+          nullable: true
+        serialNumber:
+          type: string
+          nullable: true
+        installDate:
+          type: string
+          format: date
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+    EquipmentRegistryPageResponse:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/EquipmentResponse'
+        page:
+          type: integer
+        size:
+          type: integer
+        totalItems:
+          type: integer
+          format: int64
+        totalPages:
+          type: integer
+    CreateChangeRequest:
+      type: object
+      required:
+        - entityType
+        - changeType
+        - proposedData
+      properties:
+        entityType:
+          type: string
+          maxLength: 64
+        entityId:
+          type: string
+          format: uuid
+          nullable: true
+        changeType:
+          type: string
+          enum: [CREATE, UPDATE]
+        proposedData:
+          type: string
+    DecideChangeRequest:
+      type: object
+      properties:
+        approvalNotes:
+          type: string
+          nullable: true
+    ChangeRequestResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        entityType:
+          type: string
+        entityId:
+          type: string
+          format: uuid
+          nullable: true
+        changeType:
+          type: string
+        proposedData:
+          type: string
+        status:
+          type: string
+          enum: [PENDING, APPROVED, REJECTED]
+        requestedBy:
+          type: string
+          format: uuid
+          nullable: true
+        approvedBy:
+          type: string
+          format: uuid
+          nullable: true
+        approvalNotes:
+          type: string
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+        decidedAt:
+          type: string
+          format: date-time
+          nullable: true
+    EquipmentDocumentResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        equipmentId:
+          type: string
+          format: uuid
+        documentType:
+          type: string
+        fileName:
+          type: string
+        filePath:
+          type: string
+        version:
+          type: integer
+        checksumSha256:
+          type: string
+        uploadedAt:
+          type: string
+          format: date-time
+        uploadedBy:
+          type: string
+          format: uuid
+          nullable: true
+  responses:
+    400BadRequest:
+      description: Invalid request parameters or input payload.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ApiErrorResponse'
+    401Unauthorized:
+      description: Basic authentication credentials missing or invalid.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ApiErrorResponse'
+    403Forbidden:
+      description: Authenticated user does not have the required permissions.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ApiErrorResponse'
+    404NotFound:
+      description: The requested resource was not found.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ApiErrorResponse'

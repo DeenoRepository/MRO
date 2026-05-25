@@ -1,0 +1,1550 @@
+openapi: 3.0.3
+info:
+  title: Warehouse Management System (WMS) API
+  version: 1.0.0
+  description: API for warehouses, parts catalog, stock levels, stock movements, reservations, and warehouse transfers.
+servers:
+  - url: /api/v1
+paths:
+  /wms/parts:
+    get:
+      summary: List parts
+      operationId: getParts
+      security:
+        - basicAuth: []
+      responses:
+        '200':
+          description: A list of parts catalog items.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  meta:
+                    $ref: '#/components/schemas/ApiMeta'
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/PartResponse'
+        '401':
+          $ref: '#/components/responses/401Unauthorized'
+        '403':
+          $ref: '#/components/responses/403Forbidden'
+    post:
+      summary: Create part
+      operationId: createPart
+      security:
+        - basicAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreatePartRequest'
+      responses:
+        '201':
+          description: Part created.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  meta:
+                    $ref: '#/components/schemas/ApiMeta'
+                  data:
+                    $ref: '#/components/schemas/PartResponse'
+        '400':
+          $ref: '#/components/responses/400BadRequest'
+        '401':
+          $ref: '#/components/responses/401Unauthorized'
+        '403':
+          $ref: '#/components/responses/403Forbidden'
+
+  /wms/parts/{id}:
+    get:
+      summary: Get part by ID
+      operationId: getPartById
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      security:
+        - basicAuth: []
+      responses:
+        '200':
+          description: Part details.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  meta:
+                    $ref: '#/components/schemas/ApiMeta'
+                  data:
+                    $ref: '#/components/schemas/PartResponse'
+        '401':
+          $ref: '#/components/responses/401Unauthorized'
+        '403':
+          $ref: '#/components/responses/403Forbidden'
+        '404':
+          $ref: '#/components/responses/404NotFound'
+    put:
+      summary: Update part
+      operationId: updatePart
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      security:
+        - basicAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdatePartRequest'
+      responses:
+        '200':
+          description: Part updated.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  meta:
+                    $ref: '#/components/schemas/ApiMeta'
+                  data:
+                    $ref: '#/components/schemas/PartResponse'
+        '400':
+          $ref: '#/components/responses/400BadRequest'
+        '401':
+          $ref: '#/components/responses/401Unauthorized'
+        '403':
+          $ref: '#/components/responses/403Forbidden'
+        '404':
+          $ref: '#/components/responses/404NotFound'
+
+  /wms/parts/{id}/deactivate:
+    post:
+      summary: Deactivate part
+      operationId: deactivatePart
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      security:
+        - basicAuth: []
+      responses:
+        '200':
+          description: Part deactivated.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  meta:
+                    $ref: '#/components/schemas/ApiMeta'
+                  data:
+                    $ref: '#/components/schemas/PartResponse'
+        '401':
+          $ref: '#/components/responses/401Unauthorized'
+        '403':
+          $ref: '#/components/responses/403Forbidden'
+        '404':
+          $ref: '#/components/responses/404NotFound'
+
+  /wms/reservations:
+    get:
+      summary: Search reservations
+      operationId: searchReservations
+      parameters:
+        - name: warehouseId
+          in: query
+          required: false
+          schema:
+            type: string
+            format: uuid
+        - name: partId
+          in: query
+          required: false
+          schema:
+            type: string
+            format: uuid
+        - name: status
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [RESERVED, RELEASED, CONSUMED]
+        - name: referenceType
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: referenceId
+          in: query
+          required: false
+          schema:
+            type: string
+            format: uuid
+      security:
+        - basicAuth: []
+      responses:
+        '200':
+          description: A list of reservations matching search criteria.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  meta:
+                    $ref: '#/components/schemas/ApiMeta'
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/ReservationResponse'
+        '401':
+          $ref: '#/components/responses/401Unauthorized'
+        '403':
+          $ref: '#/components/responses/403Forbidden'
+    post:
+      summary: Create reservation
+      operationId: createReservation
+      security:
+        - basicAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateReservationRequest'
+      responses:
+        '201':
+          description: Reservation created.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  meta:
+                    $ref: '#/components/schemas/ApiMeta'
+                  data:
+                    $ref: '#/components/schemas/ReservationResponse'
+        '400':
+          $ref: '#/components/responses/400BadRequest'
+        '401':
+          $ref: '#/components/responses/401Unauthorized'
+        '403':
+          $ref: '#/components/responses/403Forbidden'
+
+  /wms/reservations/{id}:
+    get:
+      summary: Get reservation by ID
+      operationId: getReservationById
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      security:
+        - basicAuth: []
+      responses:
+        '200':
+          description: Reservation details.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  meta:
+                    $ref: '#/components/schemas/ApiMeta'
+                  data:
+                    $ref: '#/components/schemas/ReservationResponse'
+        '401':
+          $ref: '#/components/responses/401Unauthorized'
+        '403':
+          $ref: '#/components/responses/403Forbidden'
+        '404':
+          $ref: '#/components/responses/404NotFound'
+
+  /wms/reservations/{id}/release:
+    post:
+      summary: Release reservation
+      operationId: releaseReservation
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      security:
+        - basicAuth: []
+      responses:
+        '200':
+          description: Released reservation details.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  meta:
+                    $ref: '#/components/schemas/ApiMeta'
+                  data:
+                    $ref: '#/components/schemas/ReservationResponse'
+        '400':
+          $ref: '#/components/responses/400BadRequest'
+        '401':
+          $ref: '#/components/responses/401Unauthorized'
+        '403':
+          $ref: '#/components/responses/403Forbidden'
+        '404':
+          $ref: '#/components/responses/404NotFound'
+
+  /wms/reservations/{id}/consume:
+    post:
+      summary: Consume reservation
+      operationId: consumeReservation
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      security:
+        - basicAuth: []
+      responses:
+        '200':
+          description: Consumed reservation details.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  meta:
+                    $ref: '#/components/schemas/ApiMeta'
+                  data:
+                    $ref: '#/components/schemas/ReservationResponse'
+        '400':
+          $ref: '#/components/responses/400BadRequest'
+        '401':
+          $ref: '#/components/responses/401Unauthorized'
+        '403':
+          $ref: '#/components/responses/403Forbidden'
+        '404':
+          $ref: '#/components/responses/404NotFound'
+
+  /wms/reservations/expire:
+    post:
+      summary: Expire active reservations past their expiration date
+      operationId: expireReservations
+      security:
+        - basicAuth: []
+      responses:
+        '200':
+          description: Number of reservations expired.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  meta:
+                    $ref: '#/components/schemas/ApiMeta'
+                  data:
+                    type: integer
+        '401':
+          $ref: '#/components/responses/401Unauthorized'
+        '403':
+          $ref: '#/components/responses/403Forbidden'
+
+  /wms/stock-levels:
+    get:
+      summary: Search stock levels
+      operationId: searchStockLevels
+      parameters:
+        - name: warehouseId
+          in: query
+          required: false
+          schema:
+            type: string
+            format: uuid
+        - name: partId
+          in: query
+          required: false
+          schema:
+            type: string
+            format: uuid
+        - name: belowMinimum
+          in: query
+          required: false
+          schema:
+            type: boolean
+      security:
+        - basicAuth: []
+      responses:
+        '200':
+          description: A list of stock levels.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  meta:
+                    $ref: '#/components/schemas/ApiMeta'
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/StockLevelResponse'
+        '401':
+          $ref: '#/components/responses/401Unauthorized'
+        '403':
+          $ref: '#/components/responses/403Forbidden'
+
+  /wms/stock-levels/below-minimum:
+    get:
+      summary: Get all stock levels below minimum
+      operationId: getBelowMinimumStock
+      security:
+        - basicAuth: []
+      responses:
+        '200':
+          description: A list of stock levels below minimum.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  meta:
+                    $ref: '#/components/schemas/ApiMeta'
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/StockLevelResponse'
+        '401':
+          $ref: '#/components/responses/401Unauthorized'
+        '403':
+          $ref: '#/components/responses/403Forbidden'
+
+  /wms/stock-levels/warehouse/{warehouseId}/part/{partId}:
+    get:
+      summary: Get specific stock level
+      operationId: getStockLevel
+      parameters:
+        - name: warehouseId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: partId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      security:
+        - basicAuth: []
+      responses:
+        '200':
+          description: Stock level details.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  meta:
+                    $ref: '#/components/schemas/ApiMeta'
+                  data:
+                    $ref: '#/components/schemas/StockLevelResponse'
+        '401':
+          $ref: '#/components/responses/401Unauthorized'
+        '403':
+          $ref: '#/components/responses/403Forbidden'
+        '404':
+          $ref: '#/components/responses/404NotFound'
+
+  /wms/stock-movements/receipt:
+    post:
+      summary: Receive stock
+      operationId: receiveStock
+      security:
+        - basicAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateStockMovementRequest'
+      responses:
+        '201':
+          description: Stock movement recorded (receipt).
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  meta:
+                    $ref: '#/components/schemas/ApiMeta'
+                  data:
+                    $ref: '#/components/schemas/StockMovementResponse'
+        '400':
+          $ref: '#/components/responses/400BadRequest'
+        '401':
+          $ref: '#/components/responses/401Unauthorized'
+        '403':
+          $ref: '#/components/responses/403Forbidden'
+
+  /wms/stock-movements/issue:
+    post:
+      summary: Issue stock
+      operationId: issueStock
+      security:
+        - basicAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateStockMovementRequest'
+      responses:
+        '201':
+          description: Stock movement recorded (issue).
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  meta:
+                    $ref: '#/components/schemas/ApiMeta'
+                  data:
+                    $ref: '#/components/schemas/StockMovementResponse'
+        '400':
+          $ref: '#/components/responses/400BadRequest'
+        '401':
+          $ref: '#/components/responses/401Unauthorized'
+        '403':
+          $ref: '#/components/responses/403Forbidden'
+
+  /wms/stock-movements/adjustment:
+    post:
+      summary: Adjust stock
+      operationId: adjustStock
+      security:
+        - basicAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateStockMovementRequest'
+      responses:
+        '201':
+          description: Stock movement recorded (adjustment).
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  meta:
+                    $ref: '#/components/schemas/ApiMeta'
+                  data:
+                    $ref: '#/components/schemas/StockMovementResponse'
+        '400':
+          $ref: '#/components/responses/400BadRequest'
+        '401':
+          $ref: '#/components/responses/401Unauthorized'
+        '403':
+          $ref: '#/components/responses/403Forbidden'
+
+  /wms/stock-movements/warehouse/{warehouseId}:
+    get:
+      summary: Get stock movements by warehouse ID
+      operationId: getMovementsByWarehouse
+      parameters:
+        - name: warehouseId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      security:
+        - basicAuth: []
+      responses:
+        '200':
+          description: A list of stock movements for the warehouse.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  meta:
+                    $ref: '#/components/schemas/ApiMeta'
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/StockMovementResponse'
+        '401':
+          $ref: '#/components/responses/401Unauthorized'
+        '403':
+          $ref: '#/components/responses/403Forbidden'
+        '404':
+          $ref: '#/components/responses/404NotFound'
+
+  /wms/stock-movements/part/{partId}:
+    get:
+      summary: Get stock movements by part ID
+      operationId: getMovementsByPart
+      parameters:
+        - name: partId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      security:
+        - basicAuth: []
+      responses:
+        '200':
+          description: A list of stock movements for the part.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  meta:
+                    $ref: '#/components/schemas/ApiMeta'
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/StockMovementResponse'
+        '401':
+          $ref: '#/components/responses/401Unauthorized'
+        '403':
+          $ref: '#/components/responses/403Forbidden'
+        '404':
+          $ref: '#/components/responses/404NotFound'
+
+  /wms/warehouses:
+    get:
+      summary: List warehouses
+      operationId: getWarehouses
+      security:
+        - basicAuth: []
+      responses:
+        '200':
+          description: A list of warehouses.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  meta:
+                    $ref: '#/components/schemas/ApiMeta'
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/WarehouseResponse'
+        '401':
+          $ref: '#/components/responses/401Unauthorized'
+        '403':
+          $ref: '#/components/responses/403Forbidden'
+    post:
+      summary: Create warehouse
+      operationId: createWarehouse
+      security:
+        - basicAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateWarehouseRequest'
+      responses:
+        '201':
+          description: Warehouse created.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  meta:
+                    $ref: '#/components/schemas/ApiMeta'
+                  data:
+                    $ref: '#/components/schemas/WarehouseResponse'
+        '400':
+          $ref: '#/components/responses/400BadRequest'
+        '401':
+          $ref: '#/components/responses/401Unauthorized'
+        '403':
+          $ref: '#/components/responses/403Forbidden'
+
+  /wms/warehouses/{id}:
+    get:
+      summary: Get warehouse by ID
+      operationId: getWarehouseById
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      security:
+        - basicAuth: []
+      responses:
+        '200':
+          description: Warehouse details.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  meta:
+                    $ref: '#/components/schemas/ApiMeta'
+                  data:
+                    $ref: '#/components/schemas/WarehouseResponse'
+        '401':
+          $ref: '#/components/responses/401Unauthorized'
+        '403':
+          $ref: '#/components/responses/403Forbidden'
+        '404':
+          $ref: '#/components/responses/404NotFound'
+    put:
+      summary: Update warehouse
+      operationId: updateWarehouse
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      security:
+        - basicAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateWarehouseRequest'
+      responses:
+        '200':
+          description: Warehouse updated.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  meta:
+                    $ref: '#/components/schemas/ApiMeta'
+                  data:
+                    $ref: '#/components/schemas/WarehouseResponse'
+        '400':
+          $ref: '#/components/responses/400BadRequest'
+        '401':
+          $ref: '#/components/responses/401Unauthorized'
+        '403':
+          $ref: '#/components/responses/403Forbidden'
+        '404':
+          $ref: '#/components/responses/404NotFound'
+
+  /wms/warehouses/{id}/deactivate:
+    post:
+      summary: Deactivate warehouse
+      operationId: deactivateWarehouse
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      security:
+        - basicAuth: []
+      responses:
+        '200':
+          description: Warehouse deactivated.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  meta:
+                    $ref: '#/components/schemas/ApiMeta'
+                  data:
+                    $ref: '#/components/schemas/WarehouseResponse'
+        '401':
+          $ref: '#/components/responses/401Unauthorized'
+        '403':
+          $ref: '#/components/responses/403Forbidden'
+        '404':
+          $ref: '#/components/responses/404NotFound'
+
+  /wms/warehouses/{id}/assign-custodian:
+    post:
+      summary: Assign custodian to warehouse
+      operationId: assignWarehouseCustodian
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: custodianId
+          in: query
+          required: false
+          schema:
+            type: string
+            format: uuid
+      security:
+        - basicAuth: []
+      responses:
+        '200':
+          description: Warehouse updated with assigned custodian.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  meta:
+                    $ref: '#/components/schemas/ApiMeta'
+                  data:
+                    $ref: '#/components/schemas/WarehouseResponse'
+        '400':
+          $ref: '#/components/responses/400BadRequest'
+        '401':
+          $ref: '#/components/responses/401Unauthorized'
+        '403':
+          $ref: '#/components/responses/403Forbidden'
+        '404':
+          $ref: '#/components/responses/404NotFound'
+
+  /wms/transfers:
+    get:
+      summary: Search warehouse transfers
+      operationId: searchTransfers
+      parameters:
+        - name: sourceWarehouseId
+          in: query
+          required: false
+          schema:
+            type: string
+            format: uuid
+        - name: targetWarehouseId
+          in: query
+          required: false
+          schema:
+            type: string
+            format: uuid
+        - name: status
+          in: query
+          required: false
+          schema:
+            type: string
+      security:
+        - basicAuth: []
+      responses:
+        '200':
+          description: List of warehouse transfers matching search criteria.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  meta:
+                    $ref: '#/components/schemas/ApiMeta'
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/WarehouseTransferResponse'
+        '401':
+          $ref: '#/components/responses/401Unauthorized'
+        '403':
+          $ref: '#/components/responses/403Forbidden'
+    post:
+      summary: Create warehouse transfer
+      operationId: createTransfer
+      security:
+        - basicAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateWarehouseTransferRequest'
+      responses:
+        '201':
+          description: Warehouse transfer created.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  meta:
+                    $ref: '#/components/schemas/ApiMeta'
+                  data:
+                    $ref: '#/components/schemas/WarehouseTransferResponse'
+        '400':
+          $ref: '#/components/responses/400BadRequest'
+        '401':
+          $ref: '#/components/responses/401Unauthorized'
+        '403':
+          $ref: '#/components/responses/403Forbidden'
+
+  /wms/transfers/{id}:
+    get:
+      summary: Get warehouse transfer by ID
+      operationId: getTransferById
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      security:
+        - basicAuth: []
+      responses:
+        '200':
+          description: Warehouse transfer details.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  meta:
+                    $ref: '#/components/schemas/ApiMeta'
+                  data:
+                    $ref: '#/components/schemas/WarehouseTransferResponse'
+        '401':
+          $ref: '#/components/responses/401Unauthorized'
+        '403':
+          $ref: '#/components/responses/403Forbidden'
+        '404':
+          $ref: '#/components/responses/404NotFound'
+
+  /wms/transfers/{id}/submit:
+    post:
+      summary: Submit warehouse transfer (DRAFT -> REQUESTED)
+      operationId: submitTransfer
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      security:
+        - basicAuth: []
+      responses:
+        '200':
+          description: Submitted transfer details.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  meta:
+                    $ref: '#/components/schemas/ApiMeta'
+                  data:
+                    $ref: '#/components/schemas/WarehouseTransferResponse'
+        '400':
+          $ref: '#/components/responses/400BadRequest'
+        '401':
+          $ref: '#/components/responses/401Unauthorized'
+        '403':
+          $ref: '#/components/responses/403Forbidden'
+        '404':
+          $ref: '#/components/responses/404NotFound'
+
+  /wms/transfers/{id}/approve:
+    post:
+      summary: Approve warehouse transfer (REQUESTED -> APPROVED)
+      operationId: approveTransfer
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      security:
+        - basicAuth: []
+      responses:
+        '200':
+          description: Approved transfer details.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  meta:
+                    $ref: '#/components/schemas/ApiMeta'
+                  data:
+                    $ref: '#/components/schemas/WarehouseTransferResponse'
+        '400':
+          $ref: '#/components/responses/400BadRequest'
+        '401':
+          $ref: '#/components/responses/401Unauthorized'
+        '403':
+          $ref: '#/components/responses/403Forbidden'
+        '404':
+          $ref: '#/components/responses/404NotFound'
+
+  /wms/transfers/{id}/start:
+    post:
+      summary: Start warehouse transfer shipment (APPROVED -> IN_TRANSIT)
+      operationId: startTransferShipment
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      security:
+        - basicAuth: []
+      responses:
+        '200':
+          description: In transit transfer details.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  meta:
+                    $ref: '#/components/schemas/ApiMeta'
+                  data:
+                    $ref: '#/components/schemas/WarehouseTransferResponse'
+        '400':
+          $ref: '#/components/responses/400BadRequest'
+        '401':
+          $ref: '#/components/responses/401Unauthorized'
+        '403':
+          $ref: '#/components/responses/403Forbidden'
+        '404':
+          $ref: '#/components/responses/404NotFound'
+
+  /wms/transfers/{id}/complete:
+    post:
+      summary: Complete warehouse transfer (IN_TRANSIT -> COMPLETED)
+      operationId: completeTransfer
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      security:
+        - basicAuth: []
+      responses:
+        '200':
+          description: Completed transfer details.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  meta:
+                    $ref: '#/components/schemas/ApiMeta'
+                  data:
+                    $ref: '#/components/schemas/WarehouseTransferResponse'
+        '400':
+          $ref: '#/components/responses/400BadRequest'
+        '401':
+          $ref: '#/components/responses/401Unauthorized'
+        '403':
+          $ref: '#/components/responses/403Forbidden'
+        '404':
+          $ref: '#/components/responses/404NotFound'
+
+  /wms/transfers/{id}/cancel:
+    post:
+      summary: Cancel warehouse transfer
+      operationId: cancelTransfer
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      security:
+        - basicAuth: []
+      responses:
+        '200':
+          description: Cancelled transfer details.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  meta:
+                    $ref: '#/components/schemas/ApiMeta'
+                  data:
+                    $ref: '#/components/schemas/WarehouseTransferResponse'
+        '400':
+          $ref: '#/components/responses/400BadRequest'
+        '401':
+          $ref: '#/components/responses/401Unauthorized'
+        '403':
+          $ref: '#/components/responses/403Forbidden'
+        '404':
+          $ref: '#/components/responses/404NotFound'
+
+components:
+  securitySchemes:
+    basicAuth:
+      type: http
+      scheme: basic
+  schemas:
+    ApiMeta:
+      type: object
+      properties:
+        requestId:
+          type: string
+          nullable: true
+    ApiErrorResponse:
+      type: object
+      properties:
+        timestamp:
+          type: string
+          format: date-time
+        status:
+          type: integer
+        error:
+          type: string
+        message:
+          type: string
+        path:
+          type: string
+        requestId:
+          type: string
+          nullable: true
+    CreatePartRequest:
+      type: object
+      required:
+        - partNumber
+        - name
+      properties:
+        partNumber:
+          type: string
+          maxLength: 64
+        name:
+          type: string
+          maxLength: 255
+        description:
+          type: string
+          maxLength: 2000
+          nullable: true
+        unit:
+          type: string
+          maxLength: 32
+          nullable: true
+        manufacturer:
+          type: string
+          maxLength: 255
+          nullable: true
+        model:
+          type: string
+          maxLength: 255
+          nullable: true
+        minStockLevel:
+          type: number
+          minimum: 0.0
+          nullable: true
+        metadata:
+          type: string
+          nullable: true
+    UpdatePartRequest:
+      type: object
+      required:
+        - name
+      properties:
+        name:
+          type: string
+          maxLength: 255
+        description:
+          type: string
+          maxLength: 2000
+          nullable: true
+        unit:
+          type: string
+          maxLength: 32
+          nullable: true
+        manufacturer:
+          type: string
+          maxLength: 255
+          nullable: true
+        model:
+          type: string
+          maxLength: 255
+          nullable: true
+        minStockLevel:
+          type: number
+          minimum: 0.0
+          nullable: true
+        metadata:
+          type: string
+          nullable: true
+        isActive:
+          type: boolean
+    PartResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        partNumber:
+          type: string
+        name:
+          type: string
+        description:
+          type: string
+          nullable: true
+        unit:
+          type: string
+        manufacturer:
+          type: string
+          nullable: true
+        model:
+          type: string
+          nullable: true
+        minStockLevel:
+          type: number
+        isActive:
+          type: boolean
+        metadata:
+          type: string
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+    CreateReservationRequest:
+      type: object
+      required:
+        - warehouseId
+        - partId
+        - quantity
+      properties:
+        warehouseId:
+          type: string
+          format: uuid
+        partId:
+          type: string
+          format: uuid
+        quantity:
+          type: number
+          minimum: 0.001
+        referenceType:
+          type: string
+          maxLength: 64
+          nullable: true
+        referenceId:
+          type: string
+          format: uuid
+          nullable: true
+        expiresAt:
+          type: string
+          format: date-time
+          nullable: true
+    ReservationResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        warehouseId:
+          type: string
+          format: uuid
+        partId:
+          type: string
+          format: uuid
+        quantity:
+          type: number
+        status:
+          type: string
+          enum: [RESERVED, RELEASED, CONSUMED]
+        referenceType:
+          type: string
+          nullable: true
+        referenceId:
+          type: string
+          format: uuid
+          nullable: true
+        expiresAt:
+          type: string
+          format: date-time
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+    StockLevelResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        warehouseId:
+          type: string
+          format: uuid
+        warehouseCode:
+          type: string
+        partId:
+          type: string
+          format: uuid
+        partNumber:
+          type: string
+        partName:
+          type: string
+        quantityOnHand:
+          type: number
+        quantityReserved:
+          type: number
+        quantityAvailable:
+          type: number
+        minStockLevel:
+          type: number
+        belowMinimum:
+          type: boolean
+    CreateStockMovementRequest:
+      type: object
+      required:
+        - warehouseId
+        - partId
+        - movementType
+        - quantity
+      properties:
+        warehouseId:
+          type: string
+          format: uuid
+        partId:
+          type: string
+          format: uuid
+        movementType:
+          type: string
+          maxLength: 32
+          enum: [RECEIPT, ISSUE, ADJUSTMENT_IN, ADJUSTMENT_OUT]
+        quantity:
+          type: number
+          minimum: 0.001
+        referenceType:
+          type: string
+          maxLength: 64
+          nullable: true
+        referenceId:
+          type: string
+          format: uuid
+          nullable: true
+        reason:
+          type: string
+          nullable: true
+    StockMovementResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        warehouseId:
+          type: string
+          format: uuid
+        partId:
+          type: string
+          format: uuid
+        movementType:
+          type: string
+        quantity:
+          type: number
+        referenceType:
+          type: string
+          nullable: true
+        referenceId:
+          type: string
+          format: uuid
+          nullable: true
+        reason:
+          type: string
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+    CreateWarehouseRequest:
+      type: object
+      required:
+        - code
+        - name
+        - type
+      properties:
+        code:
+          type: string
+          maxLength: 32
+        name:
+          type: string
+          maxLength: 255
+        type:
+          type: string
+          maxLength: 32
+        custodianId:
+          type: string
+          format: uuid
+          nullable: true
+        location:
+          type: string
+          maxLength: 255
+          nullable: true
+        description:
+          type: string
+          nullable: true
+    UpdateWarehouseRequest:
+      type: object
+      required:
+        - name
+        - type
+      properties:
+        name:
+          type: string
+          maxLength: 255
+        type:
+          type: string
+          maxLength: 32
+        custodianId:
+          type: string
+          format: uuid
+          nullable: true
+        location:
+          type: string
+          maxLength: 255
+          nullable: true
+        description:
+          type: string
+          nullable: true
+        isActive:
+          type: boolean
+    WarehouseResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        code:
+          type: string
+        name:
+          type: string
+        type:
+          type: string
+        custodianId:
+          type: string
+          format: uuid
+          nullable: true
+        location:
+          type: string
+          nullable: true
+        description:
+          type: string
+          nullable: true
+        isActive:
+          type: boolean
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+    CreateWarehouseTransferRequest:
+      type: object
+      required:
+        - sourceWarehouseId
+        - targetWarehouseId
+        - partId
+        - quantity
+      properties:
+        sourceWarehouseId:
+          type: string
+          format: uuid
+        targetWarehouseId:
+          type: string
+          format: uuid
+        partId:
+          type: string
+          format: uuid
+        quantity:
+          type: number
+          minimum: 0.001
+    WarehouseTransferResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        sourceWarehouseId:
+          type: string
+          format: uuid
+        targetWarehouseId:
+          type: string
+          format: uuid
+        partId:
+          type: string
+          format: uuid
+        quantity:
+          type: number
+        status:
+          type: string
+        requestedBy:
+          type: string
+          format: uuid
+          nullable: true
+        approvedBy:
+          type: string
+          format: uuid
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+  responses:
+    400BadRequest:
+      description: Invalid request parameters or input payload.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ApiErrorResponse'
+    401Unauthorized:
+      description: Basic authentication credentials missing or invalid.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ApiErrorResponse'
+    403Forbidden:
+      description: Authenticated user does not have the required permissions.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ApiErrorResponse'
+    404NotFound:
+      description: The requested resource was not found.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ApiErrorResponse'

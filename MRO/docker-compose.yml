@@ -1,0 +1,44 @@
+services:
+  postgres:
+    image: postgres:16
+    container_name: mro-postgres
+    environment:
+      POSTGRES_DB: mro
+      POSTGRES_USER: mro
+      POSTGRES_PASSWORD: mro
+    ports:
+      - "5432:5432"
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U mro -d mro"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: mro-backend
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/mro
+      SPRING_DATASOURCE_USERNAME: mro
+      SPRING_DATASOURCE_PASSWORD: mro
+    ports:
+      - "8080:8080"
+  nginx:
+    image: nginx:1.27-alpine
+    container_name: mro-nginx
+    depends_on:
+      - backend
+    ports:
+      - "80:80"
+    volumes:
+      - ./deploy/nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./frontend/public:/usr/share/nginx/html:ro
+
+volumes:
+  pg_data:

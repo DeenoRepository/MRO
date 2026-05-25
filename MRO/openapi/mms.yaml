@@ -1,0 +1,805 @@
+openapi: 3.0.3
+info:
+  title: Maintenance Management System (MMS) API
+  version: 1.0.0
+  description: API for work orders execution, tasks check-lists, preventive maintenance schedules, and maintenance history.
+servers:
+  - url: /api/v1
+paths:
+  /mms/pm-schedules:
+    get:
+      summary: List PM schedules
+      operationId: getPmSchedules
+      security:
+        - basicAuth: []
+      responses:
+        '200':
+          description: A list of PM schedules.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  meta:
+                    $ref: '#/components/schemas/ApiMeta'
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/PmScheduleResponse'
+        '401':
+          $ref: '#/components/responses/401Unauthorized'
+        '403':
+          $ref: '#/components/responses/403Forbidden'
+    post:
+      summary: Create PM schedule
+      operationId: createPmSchedule
+      security:
+        - basicAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreatePmScheduleRequest'
+      responses:
+        '201':
+          description: PM schedule created.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  meta:
+                    $ref: '#/components/schemas/ApiMeta'
+                  data:
+                    $ref: '#/components/schemas/PmScheduleResponse'
+        '400':
+          $ref: '#/components/responses/400BadRequest'
+        '401':
+          $ref: '#/components/responses/401Unauthorized'
+        '403':
+          $ref: '#/components/responses/403Forbidden'
+
+  /mms/pm-schedules/{id}:
+    put:
+      summary: Update PM schedule
+      operationId: updatePmSchedule
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      security:
+        - basicAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdatePmScheduleRequest'
+      responses:
+        '200':
+          description: PM schedule updated.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  meta:
+                    $ref: '#/components/schemas/ApiMeta'
+                  data:
+                    $ref: '#/components/schemas/PmScheduleResponse'
+        '400':
+          $ref: '#/components/responses/400BadRequest'
+        '401':
+          $ref: '#/components/responses/401Unauthorized'
+        '403':
+          $ref: '#/components/responses/403Forbidden'
+        '404':
+          $ref: '#/components/responses/404NotFound'
+
+  /mms/pm-schedules/generate-due:
+    post:
+      summary: Generate work orders for due PM schedules
+      operationId: generateDuePmSchedules
+      security:
+        - basicAuth: []
+      responses:
+        '200':
+          description: Number of work orders generated.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  meta:
+                    $ref: '#/components/schemas/ApiMeta'
+                  data:
+                    type: integer
+        '401':
+          $ref: '#/components/responses/401Unauthorized'
+        '403':
+          $ref: '#/components/responses/403Forbidden'
+
+  /mms/work-orders:
+    get:
+      summary: List work orders
+      operationId: getWorkOrders
+      security:
+        - basicAuth: []
+      responses:
+        '200':
+          description: A list of work orders.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  meta:
+                    $ref: '#/components/schemas/ApiMeta'
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/WorkOrderResponse'
+        '401':
+          $ref: '#/components/responses/401Unauthorized'
+        '403':
+          $ref: '#/components/responses/403Forbidden'
+    post:
+      summary: Create work order
+      operationId: createWorkOrder
+      security:
+        - basicAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateWorkOrderRequest'
+      responses:
+        '201':
+          description: Work order created.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  meta:
+                    $ref: '#/components/schemas/ApiMeta'
+                  data:
+                    $ref: '#/components/schemas/WorkOrderResponse'
+        '400':
+          $ref: '#/components/responses/400BadRequest'
+        '401':
+          $ref: '#/components/responses/401Unauthorized'
+        '403':
+          $ref: '#/components/responses/403Forbidden'
+
+  /mms/work-orders/{id}:
+    get:
+      summary: Get work order by ID
+      operationId: getWorkOrderById
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      security:
+        - basicAuth: []
+      responses:
+        '200':
+          description: Work order details.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  meta:
+                    $ref: '#/components/schemas/ApiMeta'
+                  data:
+                    $ref: '#/components/schemas/WorkOrderResponse'
+        '401':
+          $ref: '#/components/responses/401Unauthorized'
+        '403':
+          $ref: '#/components/responses/403Forbidden'
+        '404':
+          $ref: '#/components/responses/404NotFound'
+
+  /mms/work-orders/{id}/assign:
+    post:
+      summary: Assign work order to technician
+      operationId: assignWorkOrder
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      security:
+        - basicAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AssignWorkOrderRequest'
+      responses:
+        '200':
+          description: Assigned work order details.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  meta:
+                    $ref: '#/components/schemas/ApiMeta'
+                  data:
+                    $ref: '#/components/schemas/WorkOrderResponse'
+        '400':
+          $ref: '#/components/responses/400BadRequest'
+        '401':
+          $ref: '#/components/responses/401Unauthorized'
+        '403':
+          $ref: '#/components/responses/403Forbidden'
+        '404':
+          $ref: '#/components/responses/404NotFound'
+
+  /mms/work-orders/{id}/start:
+    post:
+      summary: Start executing work order
+      operationId: startWorkOrder
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      security:
+        - basicAuth: []
+      responses:
+        '200':
+          description: Started work order details.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  meta:
+                    $ref: '#/components/schemas/ApiMeta'
+                  data:
+                    $ref: '#/components/schemas/WorkOrderResponse'
+        '400':
+          $ref: '#/components/responses/400BadRequest'
+        '401':
+          $ref: '#/components/responses/401Unauthorized'
+        '403':
+          $ref: '#/components/responses/403Forbidden'
+        '404':
+          $ref: '#/components/responses/404NotFound'
+
+  /mms/work-orders/{id}/complete:
+    post:
+      summary: Complete work order
+      operationId: completeWorkOrder
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      security:
+        - basicAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CompleteWorkOrderRequest'
+      responses:
+        '200':
+          description: Completed work order details.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  meta:
+                    $ref: '#/components/schemas/ApiMeta'
+                  data:
+                    $ref: '#/components/schemas/WorkOrderResponse'
+        '400':
+          $ref: '#/components/responses/400BadRequest'
+        '401':
+          $ref: '#/components/responses/401Unauthorized'
+        '403':
+          $ref: '#/components/responses/403Forbidden'
+        '404':
+          $ref: '#/components/responses/404NotFound'
+
+  /mms/work-orders/{id}/cancel:
+    post:
+      summary: Cancel work order
+      operationId: cancelWorkOrder
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      security:
+        - basicAuth: []
+      responses:
+        '200':
+          description: Cancelled work order details.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  meta:
+                    $ref: '#/components/schemas/ApiMeta'
+                  data:
+                    $ref: '#/components/schemas/WorkOrderResponse'
+        '400':
+          $ref: '#/components/responses/400BadRequest'
+        '401':
+          $ref: '#/components/responses/401Unauthorized'
+        '403':
+          $ref: '#/components/responses/403Forbidden'
+        '404':
+          $ref: '#/components/responses/404NotFound'
+
+  /mms/work-orders/{id}/tasks:
+    get:
+      summary: Get tasks checklist for work order
+      operationId: getWorkOrderTasks
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      security:
+        - basicAuth: []
+      responses:
+        '200':
+          description: List of tasks.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  meta:
+                    $ref: '#/components/schemas/ApiMeta'
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/TaskResponse'
+        '401':
+          $ref: '#/components/responses/401Unauthorized'
+        '403':
+          $ref: '#/components/responses/403Forbidden'
+        '404':
+          $ref: '#/components/responses/404NotFound'
+    post:
+      summary: Add a task to work order checklist
+      operationId: addWorkOrderTask
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      security:
+        - basicAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateTaskRequest'
+      responses:
+        '201':
+          description: Task added.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  meta:
+                    $ref: '#/components/schemas/ApiMeta'
+                  data:
+                    $ref: '#/components/schemas/TaskResponse'
+        '400':
+          $ref: '#/components/responses/400BadRequest'
+        '401':
+          $ref: '#/components/responses/401Unauthorized'
+        '403':
+          $ref: '#/components/responses/403Forbidden'
+        '404':
+          $ref: '#/components/responses/404NotFound'
+
+  /mms/work-orders/tasks/{taskId}/complete:
+    post:
+      summary: Complete a specific task
+      operationId: completeTask
+      parameters:
+        - name: taskId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      security:
+        - basicAuth: []
+      responses:
+        '200':
+          description: Completed task details.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  meta:
+                    $ref: '#/components/schemas/ApiMeta'
+                  data:
+                    $ref: '#/components/schemas/TaskResponse'
+        '400':
+          $ref: '#/components/responses/400BadRequest'
+        '401':
+          $ref: '#/components/responses/401Unauthorized'
+        '403':
+          $ref: '#/components/responses/403Forbidden'
+        '404':
+          $ref: '#/components/responses/404NotFound'
+
+  /mms/work-orders/{id}/history:
+    get:
+      summary: Get maintenance history events for work order
+      operationId: getWorkOrderHistory
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      security:
+        - basicAuth: []
+      responses:
+        '200':
+          description: List of history events.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  meta:
+                    $ref: '#/components/schemas/ApiMeta'
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/HistoryResponse'
+        '401':
+          $ref: '#/components/responses/401Unauthorized'
+        '403':
+          $ref: '#/components/responses/403Forbidden'
+        '404':
+          $ref: '#/components/responses/404NotFound'
+
+components:
+  securitySchemes:
+    basicAuth:
+      type: http
+      scheme: basic
+  schemas:
+    ApiMeta:
+      type: object
+      properties:
+        requestId:
+          type: string
+          nullable: true
+    ApiErrorResponse:
+      type: object
+      properties:
+        timestamp:
+          type: string
+          format: date-time
+        status:
+          type: integer
+        error:
+          type: string
+        message:
+          type: string
+        path:
+          type: string
+        requestId:
+          type: string
+          nullable: true
+    CreatePmScheduleRequest:
+      type: object
+      required:
+        - equipmentId
+        - name
+        - frequencyType
+        - frequencyValue
+        - nextDueDate
+      properties:
+        equipmentId:
+          type: string
+          format: uuid
+        name:
+          type: string
+          maxLength: 255
+        description:
+          type: string
+          nullable: true
+        frequencyType:
+          type: string
+          maxLength: 32
+          enum: [DAYS, WEEKS, MONTHS]
+        frequencyValue:
+          type: integer
+        nextDueDate:
+          type: string
+          format: date
+    UpdatePmScheduleRequest:
+      type: object
+      required:
+        - name
+        - frequencyType
+        - frequencyValue
+        - nextDueDate
+        - isActive
+      properties:
+        name:
+          type: string
+          maxLength: 255
+        description:
+          type: string
+          nullable: true
+        frequencyType:
+          type: string
+          maxLength: 32
+        frequencyValue:
+          type: integer
+        nextDueDate:
+          type: string
+          format: date
+        isActive:
+          type: boolean
+    PmScheduleResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        equipmentId:
+          type: string
+          format: uuid
+        name:
+          type: string
+        description:
+          type: string
+          nullable: true
+        frequencyType:
+          type: string
+        frequencyValue:
+          type: integer
+        nextDueDate:
+          type: string
+          format: date
+        lastGeneratedDate:
+          type: string
+          format: date
+          nullable: true
+        isActive:
+          type: boolean
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+    CreateWorkOrderRequest:
+      type: object
+      required:
+        - woNumber
+        - equipmentId
+        - type
+        - title
+      properties:
+        woNumber:
+          type: string
+          maxLength: 64
+        equipmentId:
+          type: string
+          format: uuid
+        type:
+          type: string
+          maxLength: 32
+        priority:
+          type: string
+          maxLength: 32
+          nullable: true
+        scheduledDate:
+          type: string
+          format: date-time
+          nullable: true
+        title:
+          type: string
+          maxLength: 255
+        description:
+          type: string
+          maxLength: 2000
+          nullable: true
+    AssignWorkOrderRequest:
+      type: object
+      required:
+        - technicianId
+      properties:
+        technicianId:
+          type: string
+          format: uuid
+    CompleteWorkOrderRequest:
+      type: object
+      required:
+        - completionAct
+      properties:
+        completionAct:
+          type: string
+        completionNotes:
+          type: string
+          nullable: true
+    CreateTaskRequest:
+      type: object
+      required:
+        - title
+      properties:
+        title:
+          type: string
+          maxLength: 255
+        description:
+          type: string
+          nullable: true
+        sortOrder:
+          type: integer
+    TaskResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        workOrderId:
+          type: string
+          format: uuid
+        title:
+          type: string
+        description:
+          type: string
+          nullable: true
+        status:
+          type: string
+        sortOrder:
+          type: integer
+        completedAt:
+          type: string
+          format: date-time
+          nullable: true
+        completedBy:
+          type: string
+          format: uuid
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+    HistoryResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        workOrderId:
+          type: string
+          format: uuid
+        equipmentId:
+          type: string
+          format: uuid
+        eventType:
+          type: string
+        eventData:
+          type: string
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+        createdBy:
+          type: string
+          format: uuid
+          nullable: true
+    WorkOrderResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        woNumber:
+          type: string
+        equipmentId:
+          type: string
+          format: uuid
+        type:
+          type: string
+        priority:
+          type: string
+        status:
+          type: string
+          enum: [OPEN, PLANNED, ASSIGNED, IN_PROGRESS, WAITING_PARTS, COMPLETED, CANCELLED]
+        scheduledDate:
+          type: string
+          format: date-time
+          nullable: true
+        startedAt:
+          type: string
+          format: date-time
+          nullable: true
+        completedDate:
+          type: string
+          format: date-time
+          nullable: true
+        technicianId:
+          type: string
+          format: uuid
+          nullable: true
+        title:
+          type: string
+        description:
+          type: string
+          nullable: true
+        completionAct:
+          type: string
+          nullable: true
+        signatureHash:
+          type: string
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+  responses:
+    400BadRequest:
+      description: Invalid request parameters or input payload.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ApiErrorResponse'
+    401Unauthorized:
+      description: Basic authentication credentials missing or invalid.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ApiErrorResponse'
+    403Forbidden:
+      description: Authenticated user does not have the required permissions.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ApiErrorResponse'
+    404NotFound:
+      description: The requested resource was not found.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ApiErrorResponse'
